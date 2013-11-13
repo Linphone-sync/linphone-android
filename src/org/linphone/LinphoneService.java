@@ -18,8 +18,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 package org.linphone;
 
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
@@ -40,25 +38,24 @@ import org.linphone.mediastream.Log;
 import org.linphone.mediastream.Version;
 
 import android.app.Activity;
+import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.media.MediaPlayer;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.WifiLock;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
-import android.preference.PreferenceManager;
+import android.os.SystemClock;
 import android.provider.MediaStore;
 
 /**
@@ -112,6 +109,7 @@ public final class LinphoneService extends Service implements LinphoneServiceLis
 	private Notification mCustomNotif;
 	private int mMsgNotifCount;
 	private PendingIntent mNotifContentIntent;
+	private PendingIntent mkeepAlivePendingIntent;
 	private String mNotificationTitle;
 
 
@@ -134,12 +132,6 @@ public final class LinphoneService extends Service implements LinphoneServiceLis
 		super.onCreate();
 
 		// In case restart after a crash. Main in LinphoneActivity
-		LinphonePreferenceManager.getInstance(this);
-
-		// Set default preferences
-		PreferenceManager.setDefaultValues(this, R.xml.preferences, true);
-
-		
 		mNotificationTitle = getString(R.string.app_name);
 
 		// Dump some debugging information to the logs
@@ -198,6 +190,13 @@ public final class LinphoneService extends Service implements LinphoneServiceLis
 		}
 		
 		LinphoneManager.getLc().setPresenceInfo(0, "", OnlineStatus.Online);
+		//make sure the application will at least wakes up every 10 mn
+		Intent intent = new Intent(this, KeepAliveHandler.class);
+	    mkeepAlivePendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_ONE_SHOT);
+		((AlarmManager) this.getSystemService(Context.ALARM_SERVICE)).setRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP
+																							, SystemClock.elapsedRealtime()+600000
+																							, 600000
+																							, mkeepAlivePendingIntent);
 	}
 
 	private enum IncallIconState {INCALL, PAUSE, VIDEO, IDLE}
@@ -237,7 +236,7 @@ public final class LinphoneService extends Service implements LinphoneServiceLis
 		String userName = call.getRemoteAddress().getUserName();
 		String domain = call.getRemoteAddress().getDomain();
 		String displayName = call.getRemoteAddress().getDisplayName();
-		LinphoneAddress address = LinphoneCoreFactoryImpl.instance().createLinphoneAddress("sip:" + userName + "@" + domain);
+		LinphoneAddress address = LinphoneCoreFactoryImpl.instance().createLinphoneAddress(userName,domain,null);
 		address.setDisplayName(displayName);
 
 		Uri pictureUri = LinphoneUtils.findUriPictureOfContactAndSetDisplayName(address, getContentResolver());
@@ -313,7 +312,13 @@ public final class LinphoneService extends Service implements LinphoneServiceLis
 			mMsgNotifCount++;
 		}
 		
-		Uri pictureUri = LinphoneUtils.findUriPictureOfContactAndSetDisplayName(LinphoneCoreFactoryImpl.instance().createLinphoneAddress(fromSipUri), getContentResolver());
+		Uri pictureUri;
+		try {
+			pictureUri = LinphoneUtils.findUriPictureOfContactAndSetDisplayName(LinphoneCoreFactoryImpl.instance().createLinphoneAddress(fromSipUri), getContentResolver());
+		} catch (LinphoneCoreException e1) {
+			Log.e("Cannot parse from address",e1);
+			pictureUri=null;
+		}
 		Bitmap bm = null;
 		try {
 			bm = MediaStore.Images.Media.getBitmap(getContentResolver(), pictureUri);
@@ -474,6 +479,7 @@ public final class LinphoneService extends Service implements LinphoneServiceLis
 	    mNM.cancel(INCALL_NOTIF_ID);
 	    mNM.cancel(MESSAGE_NOTIF_ID);
 	    mWifiLock.release();
+	    ((AlarmManager) this.getSystemService(Context.ALARM_SERVICE)).cancel(mkeepAlivePendingIntent);
 		super.onDestroy();
 	}
 	
@@ -563,7 +569,7 @@ public final class LinphoneService extends Service implements LinphoneServiceLis
 			// If the correspondent proposes video while audio call
 			boolean remoteVideo = call.getRemoteParams().getVideoEnabled();
 			boolean localVideo = call.getCurrentParamsCopy().getVideoEnabled();
-			boolean autoAcceptCameraPolicy = LinphoneManager.getInstance().isAutoAcceptCamera();
+			boolean autoAcceptCameraPolicy = LinphonePreferences.instance().shouldAutomaticallyAcceptVideoRequests();
 			if (remoteVideo && !localVideo && !autoAcceptCameraPolicy && !LinphoneManager.getLc().isInConference()) {
 				try {
 					LinphoneManager.getLc().deferCallUpdate(call);
@@ -600,28 +606,6 @@ public final class LinphoneService extends Service implements LinphoneServiceLis
 		void onDisplayStatus(String message);
 		void onGlobalStateChangedToOn(String message);
 		void onCallStateChanged(LinphoneCall call, State state, String message);
-	}
-
-	public void changeRingtone(String ringtone) {
-		SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(this).edit();
-		editor.putString(getString(R.string.pref_audio_ringtone), ringtone);
-		editor.commit();
-	}
-
-	public void onRingerPlayerCreated(MediaPlayer mRingerPlayer) {
-		String uriString = PreferenceManager.getDefaultSharedPreferences(this).getString(getString(R.string.pref_audio_ringtone), 
-				android.provider.Settings.System.DEFAULT_RINGTONE_URI.toString());
-		try {
-			if (uriString.startsWith("content://")) {
-				mRingerPlayer.setDataSource(this, Uri.parse(uriString));
-			} else {
-				FileInputStream fis = new FileInputStream(uriString);
-				mRingerPlayer.setDataSource(fis.getFD());
-				fis.close();
-			}
-		} catch (IOException e) {
-			Log.e(e, "Cannot set ringtone");
-		}
 	}
 
 	public void tryingNewOutgoingCallButAlreadyInCall() {

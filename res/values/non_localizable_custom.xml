@@ -8,6 +8,7 @@
 	<string name="push_sender_id">622464153529</string>
 
 	<string name="default_domain">sip.linphone.org</string>
+	<string name="default_stun">stun.linphone.org</string>
 	<bool name="override_domain_using_default_one">false</bool> <!-- Replace the domain for outgoing calls by the one above -->
 	<string name="wizard_url">https://www.linphone.org/wizard.php</string>
 
@@ -16,6 +17,7 @@
     <bool name="replace_settings_by_about">false</bool>
     <bool name="replace_chat_by_about">false</bool>
     <bool name="display_about_in_settings">true</bool>
+    <bool name="exit_button_on_dialer">false</bool>
     
     <bool name="hide_camera_settings">false</bool>
     <bool name="replace_wizard_with_old_interface">false</bool>
@@ -26,14 +28,16 @@
     <bool name="setup_account_validation_mandatory">false</bool>
     <bool name="hide_linphone_accounts_wizard">false</bool>
     <bool name="hide_generic_accounts_wizard">false</bool>
+    <bool name="hide_remote_provisioning_in_wizard">false</bool>
     <bool name="hide_accounts">false</bool>
 	<bool name="display_account_wizard_at_first_start">true</bool>
+	<bool name="use_linphone_server_ports">true</bool>
 	
 	<bool name="use_android_native_contact_edit_interface">false</bool>
 	<!-- The following settings are only usefull if use_android_native_contact_edit_interface = false -->
 	<bool name="hide_phone_numbers_in_editor">false</bool>
 	<bool name="hide_sip_addresses_in_editor">false</bool>
-	<bool name="forbid_empty_new_contact_in_editor">false</bool>
+	<bool name="forbid_empty_new_contact_in_editor">true</bool>
 	
 	<bool name="disable_animations">false</bool>
     <bool name="show_statusbar_only_on_dialer">true</bool>
@@ -59,7 +63,10 @@
 	<bool name="allow_edit_in_dialer">true</bool>
 	<bool name="forbid_self_call">false</bool>
 	<bool name="disable_chat">false</bool>
+	<bool name="disable_chat__message_notification">false</bool>
 	<bool name="disable_chat_send_file">false</bool>
+	<bool name="use_linphone_chat_storage">true</bool>
+	<bool name="auto_answer_calls">false</bool>
 	
 	<bool name="hash_images_as_name_before_upload">true</bool>
 	

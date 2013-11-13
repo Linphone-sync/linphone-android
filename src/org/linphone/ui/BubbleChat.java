@@ -28,8 +28,10 @@ import org.linphone.core.LinphoneChatMessage;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.net.Uri;
 import android.text.Html;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
@@ -85,9 +87,9 @@ public class BubbleChat {
 	
 	private RelativeLayout view;
 	private ImageView statusView;
-	private Button download;
+	private Button downloadOrShow;
 	
-	public BubbleChat(Context context, int id, String message, Bitmap image, String time, boolean isIncoming, LinphoneChatMessage.State status, int previousID) {
+	public BubbleChat(final Context context, int id, String message, Bitmap image, long time, boolean isIncoming, LinphoneChatMessage.State status, final String url, int previousID) {
 		view = new RelativeLayout(context);
 		
 		LayoutParams layoutParams = new LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
@@ -112,7 +114,8 @@ public class BubbleChat {
     	Spanned text = null;
     	if (message != null) {
 	    	if (context.getResources().getBoolean(R.bool.emoticons_in_messages)) {
-	    		text = getSmiledText(context, getTextWithHttpLinks(message));
+	    		text = getSmiledText(context, getTextWithHttpLinks(message), message);
+	    		//text = getTextWithHttpLinks(message);
 	    	} else {
 	    		text = getTextWithHttpLinks(message);
 	    	}
@@ -148,10 +151,20 @@ public class BubbleChat {
 	    	} else if (imageView != null) {
 	    		imageView.setVisibility(View.GONE);
 	    	}
+	    	if (imageView != null) {
+	    		imageView.setOnClickListener(new OnClickListener() {
+	    			@Override
+	    			public void onClick(View v) {
+	    				Intent intent = new Intent(Intent.ACTION_VIEW);
+	    				intent.setDataAndType(Uri.parse("file://" + url), "image/*");
+	    				context.startActivity(intent);
+	    			}
+	    		});
+	    	}
 	    	
-	    	download = (Button) layout.findViewById(R.id.download);
-	    	if (download != null && image == null && message == null) {
-	    		download.setVisibility(View.VISIBLE);
+	    	downloadOrShow = (Button) layout.findViewById(R.id.download);
+	    	if (downloadOrShow != null && image == null && message == null) {
+	    		downloadOrShow.setVisibility(View.VISIBLE);
 	    	}
 	    	
 	    	TextView timeView = (TextView) layout.findViewById(R.id.time);
@@ -201,10 +214,10 @@ public class BubbleChat {
 		return view;
 	}
 	
-	private String timestampToHumanDate(Context context, String timestamp) {
+	private String timestampToHumanDate(Context context, long timestamp) {
 		try {
 			Calendar cal = Calendar.getInstance();
-			cal.setTimeInMillis(Long.parseLong(timestamp));
+			cal.setTimeInMillis(timestamp);
 			
 			SimpleDateFormat dateFormat;
 			if (isToday(cal)) {
@@ -215,7 +228,7 @@ public class BubbleChat {
 			
 			return dateFormat.format(cal.getTime());
 		} catch (NumberFormatException nfe) {
-			return timestamp;
+			return String.valueOf(timestamp);
 		}
 	}
 	
@@ -233,23 +246,19 @@ public class BubbleChat {
                 cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR));
     }
 	
-	public static Spannable getSmiledText(Context context, Spanned text) {
-		SpannableStringBuilder builder = new SpannableStringBuilder(text);
-		int index;
+	public static Spannable getSmiledText(Context context, Spanned spanned, String text) {
+		SpannableStringBuilder builder = new SpannableStringBuilder(spanned);
 
-		for (index = 0; index < builder.length(); index++) {
-		    for (Entry<String, Integer> entry : emoticons.entrySet()) {
-		        int length = entry.getKey().length();
-		        if (index + length > builder.length())
-		            continue;
-		        if (builder.subSequence(index, index + length).toString().equals(entry.getKey())) {
-		            builder.setSpan(new ImageSpan(context, entry.getValue()), index, index + length,
-		            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-		            index += length - 1;
-		            break;
-		        }
-		    }
+		for (Entry<String, Integer> entry : emoticons.entrySet()) {
+			String key = entry.getKey();
+			int indexOf = text.indexOf(key);
+			while (indexOf >= 0) {
+				int end = indexOf + key.length();
+				builder.setSpan(new ImageSpan(context, entry.getValue()), indexOf, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+				indexOf = text.indexOf(key, end);
+			}
 		}
+		
 		return builder;
 	}
 	
@@ -272,9 +281,15 @@ public class BubbleChat {
 		return Html.fromHtml(text);
 	}
 
-	public void setDownloadImageButtonListener(OnClickListener onClickListener) {
-		if (download != null) {
-			download.setOnClickListener(onClickListener);
+	public void setShowOrDownloadImageButtonListener(OnClickListener onClickListener) {
+		if (downloadOrShow != null) {
+			downloadOrShow.setOnClickListener(onClickListener);
+		}
+	}
+	
+	public void setShowOrDownloadText(String buttonName) {
+		if (downloadOrShow != null) {
+			downloadOrShow.setText(buttonName);
 		}
 	}
 }

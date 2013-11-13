@@ -332,10 +332,6 @@ public class ApiFivePlus {
 		return null;
 	}
 	
-	public static int getRotation(Display display) {
-		return display.getOrientation();
-	}
-	
 	public static Notification createMessageNotification(Context context, String title, String msg, PendingIntent intent) {
 		Notification notif = new Notification();
 		notif.icon = R.drawable.chat_icon_over;
@@ -435,6 +431,7 @@ public class ApiFivePlus {
 	}
 
 	public static void setAudioManagerInCallMode(AudioManager manager) {
-		manager.setMode(AudioManager.MODE_IN_CALL);
+		/* Do not use MODE_IN_CALL, because it is reserved to GSM. This is causing conflicts on audio system resulting in silenced audio.*/
+		//manager.setMode(AudioManager.MODE_IN_CALL);
 	}
 }

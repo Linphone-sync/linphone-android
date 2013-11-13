@@ -16,7 +16,7 @@
 		<item>@string/tunnel_mode_entry_value_disabled</item>
 		<item >@string/tunnel_mode_entry_value_3G_only</item>
 		<item>@string/tunnel_mode_entry_value_always</item>
-	<item>@string/tunnel_mode_entry_value_auto</item>
+		<item>@string/tunnel_mode_entry_value_auto</item>
 	</string-array> 
 		<string name="pref_tunnel_host_key">pref_tunnel_host_key</string>
 		<string name="pref_tunnel_port_key">pref_tunnel_port_key</string>
@@ -34,6 +34,7 @@
 	<string name="pref_sipaccounts_key">pref_sipaccounts_key</string>
 	<string name="setup_key">setup_key</string>
 	<string name="pref_video_key">pref_video_key</string>
+    <string name="pref_video_codecs_key">pref_video_codecs_key</string>
 	<string name="pref_linphone_friend_key">pref_linphone_friend_key</string>
 
 	<string name="pref_transport_key">pref_transport_key</string>
@@ -49,6 +50,7 @@
     <string name="pref_domain_key">pref_domain_key</string>
     <string name="pref_passwd_key">pref_passwd_key</string>
     <string name="pref_username_key">pref_username_key</string>
+    <string name="pref_auth_userid_key">pref_auth_userid_key</string>
     <string name="pref_wizard_key">pref_wizard_key</string>
     <string name="pref_activated_key">pref_activated_key</string>
     <string name="pref_debug_key">pref_debug_key</string>
@@ -64,6 +66,10 @@
     <string name="pref_video_automatically_accept_video_key">pref_video_automatically_accept_video_key</string>
     <string name="pref_video_initiate_call_with_video_key">pref_video_initiate_call_with_video_key</string>
     <string name="pref_video_enable_key">pref_video_enable_key</string>
+	<string name="pref_preferred_video_size_key">pref_preferred_video_size_key</string>
+	<string name="pref_preferred_video_size_hd_key">pref_preferred_video_size_hd_key</string>
+	<string name="pref_preferred_video_size_vga_key">pref_preferred_video_size_vga_key</string>
+	<string name="pref_preferred_video_size_qvga_key">pref_preferred_video_size_qvga_key</string>
     <string name="pref_animation_enable_key">pref_animation_enable_key</string>
     <string name="pref_escape_plus_key">pref_escape_plus_key</string>
     <string name="pref_echo_cancellation_key">pref_echo_cancellation_key</string>
@@ -84,6 +90,7 @@
     <string name="pref_codec_silk12_key">pref_codec_silk12_key</string>
     <string name="pref_codec_silk16_key">pref_codec_silk16_key</string>
     <string name="pref_codec_silk24_key">pref_codec_silk24_key</string>
+    <string name="pref_codec_opus_key">pref_codec_opus_key</string>
     <string name="pref_codecs_key">pref_codecs_key</string>
     <string name="pref_stun_server_key">pref_stun_server_key</string>
     <string name="pref_ice_enable_key">pref_ice_enable_key</string>
@@ -112,4 +119,11 @@
     
 	<string name="pref_rfc2833_dtmf_key">pref_rfc2833_dtmf_key</string>
 	<string name="pref_sipinfo_dtmf_key">pref_sipinfo_dtmf_key</string>
+	<string name="pref_upnp_enable_key">pref_upnp_enable_key</string>
+	
+	<string name="pref_first_time_linphone_chat_storage">pref_first_time_linphone_chat_storage</string>
+	
+	<string name="pref_sipaccount_key">pref_sipaccount_key</string>
+	<string name="pref_advanced_key">pref_advanced_key</string>
+	<string name="pref_manage_key">pref_manage_key</string>
 </resources>

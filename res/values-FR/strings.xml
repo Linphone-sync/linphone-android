@@ -97,7 +97,10 @@
 	<string name="pref_video">Vidéo</string>
 	<string name="pref_preferences">Préférences</string>
     <string name="pref_video_codecs_title">Codecs</string>
-    
+	<string name="pref_preferred_video_size">Taille de vidéo préférée</string>
+	<string name="pref_preferred_video_size_hd">HD</string>
+	<string name="pref_preferred_video_size_vga">VGA (640x480)</string>
+	<string name="pref_preferred_video_size_qvga">QVGA (320x240)</string>
     <string name="pref_video_settings_title">Paramètres vidéo</string>
     <string name="pref_video_automatically_share_my_video_title">Partager ma vidéo</string>
     <string name="pref_video_automatically_accept_video_title">Accepter appels vidéo</string>
@@ -368,7 +371,22 @@
 	<string name="call_state_incoming">Reçu</string>
 	
 	<string name="pref_background_mode">Actif en arrière plan</string>
+	<string name="pref_manage">Gestion</string>
 	
+	<string name="show_image">Afficher</string>
 	<string name="download_image">Télécharger</string>
 	<string name="download_image_failed">Téléchargement échoué. Vérifiez votre connexion internet ou reéssayez plus tard.</string>
+	
+	<string name="wait">Merci de patienter...</string>
+	<string name="importing_messages">Mise à jour de la base des messages</string>
+	<string name="default_account_flag">Compte par défaut</string>
+	
+	<string name="setup_remote_provisioning">Télécharger ma configuration</string>
+	<string name="setup_remote_provisioning_hint">Cet assistant va télécharger une configuration existante.</string>
+	<string name="setup_remote_provisioning_url_hint">addresse où télécharger la configuration</string>
+	<string name="setup_confirm_username">Votre nom d\'utilisateur sera %s (les majuscules sont interdites). Acceptez-vous ?</string>
+	
+	<string name="zrtp_accept">Accepter</string>
+	<string name="zrtp_deny">Refuser</string>
+	<string name="zrtp_help">Vous ne devriez accepter que si vous avez le même code (ci-dessus) que votre contact</string>
 </resources>

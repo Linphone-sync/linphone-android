@@ -118,7 +118,10 @@
     <string name="pref_video_codec_mpeg4_title">MPEG4</string>
     <string name="pref_video_codec_h264_title">H264</string>
     <string name="pref_video_codecs_title">Codecs</string>
-    <string name="pref_video_codecs_key">pref_video_codecs_key</string>
+	<string name="pref_preferred_video_size">Preferred video size</string>
+	<string name="pref_preferred_video_size_hd">HD</string>
+	<string name="pref_preferred_video_size_vga">VGA (640x480)</string>
+	<string name="pref_preferred_video_size_qvga">QVGA (320x240)</string>
 	<string name="menu_videocall_back_to_dialer_title">Display dialer</string>
 	<string name="menu_videocall_switch_camera_title">Front/Rear Camera</string>
 	<string name="menu_videocall_change_resolution_when_low_resolution">Try High resolution</string>
@@ -151,6 +154,7 @@
     <string name="pref_codec_ilbc">ilbc</string>
     <string name="pref_codec_speex8">speex 8 Khz</string>
     <string name="pref_codec_speex16">speex 16 Khz</string>
+    <string name="pref_codec_opus">opus 48Khz</string>
     <string name="pref_codec_silk8">silk 8 Khz</string>
     <string name="pref_codec_silk12">silk 12 Khz</string>
     <string name="pref_codec_silk16">silk 16 Khz</string>
@@ -417,6 +421,27 @@
 	
 	<string name="pref_background_mode">Background mode</string>
 	
+	<string name="show_image">Show</string>
 	<string name="download_image">Download</string>
-	<string name="download_image_failed">Download failed. Check your internet connection or try again later.</string>
+	<string name="download_image_failed">Download failed. Please check your internet access or try again later.</string>
+	
+	<string name="pref_auth_userid">Auth userid</string>
+	
+	<string name="pref_help_auth_userid">Enter authentication userid (optionnal)</string>
+	
+	<string name="pref_upnp_enable">Enable UPNP</string>
+	<string name="pref_manage">Manage</string>
+	
+	<string name="wait">Please wait...</string>
+	<string name="importing_messages">Updating messages database</string>
+	<string name="default_account_flag">Default account</string>
+	
+	<string name="setup_remote_provisioning">Download provisioning</string>
+	<string name="setup_remote_provisioning_hint">This assistant will download an existing configuration.</string>
+	<string name="setup_remote_provisioning_url_hint">provisioning url</string>
+	<string name="setup_confirm_username">Your username will be %s (uppercase characters are not allowed). Do you accept ?</string>
+	
+	<string name="zrtp_accept">Accept</string>
+	<string name="zrtp_deny">Deny</string>
+	<string name="zrtp_help">You should only accept if you have the same code (see above) as your correspondent</string>
 </resources>

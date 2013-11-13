@@ -11,7 +11,7 @@ LOCAL_SRC_FILES := \
 	 	src/ZIDRecord.cpp \
 	 	src/ZrtpCallbackWrapper.cpp \
 	 	src/ZrtpConfigure.cpp \
-	 	src/ZRtp.cpp \
+	 	src/Zrtp.cpp \
 	 	src/ZrtpCrc32.cpp \
 	 	src/ZrtpCWrapper.cpp \
 	 	src/ZrtpPacketClearAck.cpp \
@@ -64,16 +64,7 @@ LOCAL_C_INCLUDES += \
         $(LOCAL_EXTERNALS)/openssl/include 
 
 
-
-# Build dynamic and static versions
-ifeq ($(TARGET_ARCH_ABI),armeabi-v7a)
-LOCAL_MODULE:= libzrtpcpp
-LOCAL_SHARED_LIBRARIES := liblincrypto liblinssl
+LOCAL_MODULE := libzrtpcpp
+LOCAL_MODULE_FILENAME := libzrtpcpp-$(TARGET_ARCH_ABI)
+LOCAL_SHARED_LIBRARIES := libssl-linphone libcrypto-linphone
 include $(BUILD_SHARED_LIBRARY)
-else
-LOCAL_STATIC_LIBRARIES := libcrypto-static libssl-static
-LOCAL_MODULE:= libzrtpcpp-static
-include $(BUILD_STATIC_LIBRARY)
-endif
-
-
