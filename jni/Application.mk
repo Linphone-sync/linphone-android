@@ -114,7 +114,7 @@ endif
 endif
 
 ifeq ($(BUILD_GPLV3_ZRTP), 1)
-APP_MODULES      += libzrtpcpp
+APP_MODULES      += libbzrtp
 endif
 
 APP_MODULES      +=libmsilbc
