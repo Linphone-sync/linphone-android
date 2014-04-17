@@ -43,6 +43,7 @@ import org.linphone.core.LinphoneCore.RegistrationState;
 import org.linphone.core.LinphoneCoreException;
 import org.linphone.core.LinphoneCoreFactory;
 import org.linphone.core.LinphoneFriend;
+import org.linphone.core.LinphoneProxyConfig;
 import org.linphone.mediastream.Log;
 import org.linphone.setup.RemoteProvisioningLoginActivity;
 import org.linphone.setup.SetupActivity;
@@ -769,7 +770,7 @@ public class LinphoneActivity extends FragmentActivity implements
 	}
 
 	@Override
-	public void onRegistrationStateChanged(RegistrationState state) {
+	public void onRegistrationStateChanged(LinphoneProxyConfig lpc, RegistrationState state, String message) {
 		if (statusFragment != null) {
 			LinphoneCore lc = LinphoneManager.getLcIfManagerNotDestroyedOrNull();
 			if (lc != null && lc.getDefaultProxyConfig() != null)

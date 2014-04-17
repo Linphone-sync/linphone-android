@@ -71,7 +71,6 @@ import org.linphone.core.PayloadType;
 import org.linphone.core.PresenceActivityType;
 import org.linphone.core.PresenceModel;
 import org.linphone.core.PublishState;
-import org.linphone.core.Reason;
 import org.linphone.core.SubscriptionState;
 import org.linphone.mediastream.Log;
 import org.linphone.mediastream.Version;
@@ -913,7 +912,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 
 	public void registrationState(final LinphoneCore lc, final LinphoneProxyConfig cfg,final RegistrationState state,final String message) {
 		Log.i("new state ["+state+"]");
-		mListenerDispatcher.onRegistrationStateChanged(state, message);
+		mListenerDispatcher.onRegistrationStateChanged(cfg, state, message);
 	}
 
 	private int savedMaxCallWhileGsmIncall;
@@ -1382,11 +1381,11 @@ public class LinphoneManager implements LinphoneCoreListener {
 			if (serviceListener != null) serviceListener.onGlobalStateChanged( state, message);
 		}
 
-		public void onRegistrationStateChanged(RegistrationState state,
+		public void onRegistrationStateChanged(LinphoneProxyConfig lpc, RegistrationState state,
 				String message) {
-			if (serviceListener != null) serviceListener.onRegistrationStateChanged(state, message);
+			if (serviceListener != null) serviceListener.onRegistrationStateChanged(lpc, state, message);
 			for (LinphoneOnRegistrationStateChangedListener listener : getSimpleListeners(LinphoneOnRegistrationStateChangedListener.class)) {
-				listener.onRegistrationStateChanged(state);
+				listener.onRegistrationStateChanged(lpc, state, message);
 			}
 		}
 
