@@ -157,6 +157,7 @@ public class LinphonePreferences {
 		private String tempPassword;
 		private String tempDomain;
 		private String tempProxy;
+		private String tempFriendlyname;
 		private boolean tempOutboundProxy;
 		private String tempContactsParams;
 		private String tempExpire;
@@ -178,6 +179,11 @@ public class LinphonePreferences {
 			return this;
 		}
 
+		public AccountBuilder setDisplayName(String name) {
+			tempFriendlyname = name;
+			return this;
+		}
+ 
 		public AccountBuilder setDomain(String domain) {
 			tempDomain = domain;
 			return this;
@@ -223,6 +229,7 @@ public class LinphonePreferences {
 		 */
 		public void saveNewAccount() throws LinphoneCoreException {
 			String identity = "sip:" + tempUsername + "@" + tempDomain;
+			if (tempFriendlyname != null) identity = "\"" + tempFriendlyname + "\" <" + identity + ">";
 			String proxy = "sip:";
 			if (tempProxy == null) {
 				proxy += tempDomain;
