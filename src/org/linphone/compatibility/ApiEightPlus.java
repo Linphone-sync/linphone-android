@@ -38,20 +38,18 @@ public class ApiEightPlus {
 			// Starting the push notification service
 			GCMRegistrar.checkDevice(context);
 			GCMRegistrar.checkManifest(context);
-			final String regId = GCMRegistrar.getRegistrationId(context);
-			String newPushSenderID = context.getString(R.string.push_sender_id);
-			String currentPushSenderID = LinphonePreferences.instance().getPushNotificationRegistrationID();
-			if (regId.equals("") || currentPushSenderID == null || !currentPushSenderID.equals(newPushSenderID)) {
-				GCMRegistrar.register(context, newPushSenderID);
-
-				Log.d("Push Notification : storing current sender id = " + newPushSenderID);
-				LinphonePreferences.instance().setPushNotificationRegistrationID(newPushSenderID);
-			} else {
-				Log.d("Push Notification : already registered with id = " + regId);
-				LinphonePreferences.instance().setPushNotificationRegistrationID(regId);
+			final String regID = GCMRegistrar.getRegistrationId(context);
+			String appID = context.getString(R.string.push_sender_id);
+			String currentRegID = LinphonePreferences.instance().getPushNotificationRegistrationID();
+			if (regID == null || regID.equals("")) {
+				Log.w("[Push] No previous regID, let's register");
+				GCMRegistrar.register(context, appID);
+			} else if (currentRegID == null || !currentRegID.equals(regID)) {
+				Log.d("[Push] Device regid has changed from ", currentRegID, " to ", regID);
+				LinphonePreferences.instance().setPushNotificationRegistrationID(regID);
 			}
 		} catch (java.lang.UnsupportedOperationException e) {
-			Log.i("Push Notification not activated");
+			Log.i("[Push] push notification not activated");
 		}
 	}
 }

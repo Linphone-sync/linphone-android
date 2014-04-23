@@ -40,12 +40,12 @@ public class GCMService extends GCMBaseIntentService {
 	
 	@Override
 	protected void onError(Context context, String errorId) {
-		Log.e("Error while registering push notification : " + errorId);
+		Log.e("[Push] Error while registering push notification : " + errorId);
 	}
 
 	@Override
 	protected void onMessage(Context context, Intent intent) {
-		Log.d("Push notification received");
+		Log.d("[Push] notification received");
 		if (LinphoneManager.isInstanciated()) {
 			LinphoneManager.getLc().setNetworkReachable(false);
 			LinphoneManager.getLc().setNetworkReachable(true);
@@ -54,13 +54,13 @@ public class GCMService extends GCMBaseIntentService {
 
 	@Override
 	protected void onRegistered(Context context, String regId) {
-		Log.d("Registered push notification : " + regId);
+		Log.d("[Push] Registered push notification : " + regId);
 		LinphonePreferences.instance().setPushNotificationRegistrationID(regId);
 	}
 
 	@Override
 	protected void onUnregistered(Context context, String regId) {
-		Log.w("Unregistered push notification : " + regId);
+		Log.w("[Push] Unregistered push notification : " + regId);
 		LinphonePreferences.instance().setPushNotificationRegistrationID(null);
 	}
 	
