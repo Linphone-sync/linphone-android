@@ -123,7 +123,7 @@ public class BubbleChat {
     	Spanned text = null;
     	if (message != null) {
 	    	if (context.getResources().getBoolean(R.bool.emoticons_in_messages)) {
-	    		text = getSmiledText(context, getTextWithHttpLinks(message), message);
+	    		text = getSmiledText(context, getTextWithHttpLinks(message));
 	    		//text = getTextWithHttpLinks(message);
 	    	} else {
 	    		text = getTextWithHttpLinks(message);
@@ -257,8 +257,9 @@ public class BubbleChat {
                 cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR));
     }
 	
-	public static Spannable getSmiledText(Context context, Spanned spanned, String text) {
+	public static Spannable getSmiledText(Context context, Spanned spanned) {
 		SpannableStringBuilder builder = new SpannableStringBuilder(spanned);
+		String text = spanned.toString();
 
 		for (Entry<String, Integer> entry : emoticons.entrySet()) {
 			String key = entry.getKey();

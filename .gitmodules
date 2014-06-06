@@ -22,9 +22,6 @@
 [submodule "submodules/msx264"]
 	path = submodules/msx264
 	url = git://git.linphone.org/msx264.git
-[submodule "submodules/externals/openssl"]
-	path = submodules/externals/openssl
-	url = git://git.linphone.org/android-openssl.git
 [submodule "submodules/externals/opencore-amr"]
 	path = submodules/externals/opencore-amr
 	url = git://git.code.sf.net/p/opencore-amr/code
@@ -34,9 +31,9 @@
 [submodule "submodules/externals/libvpx"]
 	path = submodules/externals/libvpx
 	url = http://git.chromium.org/webm/libvpx.git
-[submodule "submodules/externals/libzrtpcpp"]
-	path = submodules/externals/libzrtpcpp
-	url = https://github.com/wernerd/ZRTPCPP.git
+[submodule "submodules/bzrtp"]
+	path = submodules/bzrtp
+	url = git://git.linphone.org/bzrtp.git
 [submodule "submodules/externals/srtp"]
 	path = submodules/externals/srtp
 	url = git://git.linphone.org/srtp.git
@@ -79,3 +76,9 @@
 [submodule "submodules/msisac"]
 	path = submodules/msisac
 	url = git://git.linphone.org/msisac.git
+[submodule "submodules/msopenh264"]
+	path = submodules/msopenh264
+	url = git://git.linphone.org/msopenh264.git
+[submodule "submodules/externals/openh264"]
+	path = submodules/externals/openh264
+	url = https://github.com/cisco/openh264

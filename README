@@ -3,8 +3,8 @@
 
 To build liblinphone for Android, you must:
 0) download the Android sdk with platform-tools and tools updated to latest revision (at least API 16 is needed), then add both 'tools' and 'platform-tools' folders in your path.
-1) download the Android ndk (>=r9) from google and add it to your path (no symlink !!!).
-2) install yasm, curl, ant and the autotools: autoconf, automake, aclocal, libtoolize, pkgconfig
+1) download the Android ndk (>=r9d) from google and add it to your path (no symlink !!!).
+2) install yasm, nasm, curl, ant, rsync and the autotools: autoconf, automake, aclocal, libtoolize, pkgconfig
 	On 64 bits linux systems you'll need the ia32-libs package
 	With the latest Debian (multiarch), you need this:
 		dpkg --add-architecture i386
@@ -26,7 +26,9 @@ To run the tutorials:
 
 To create an apk with a different package name, you need to edit the custom_rules.xml file:
 1) look for the property named "linphone.package.name" and change it value accordingly
-2) run again the Makefile script by calling "make"
+2) also update the values in the AndroidManifest file where the comment <!-- Change package ! --> appears
+3) update the path to the sounds in the linphonerc-factory files in the res folders
+4) run again the Makefile script by calling "make"
 
 
 			   TROUBLESHOOTING
@@ -48,7 +50,7 @@ Some options can be passed to make, like "make SOME_OPTION=SOME_VALUE".
 
 ENABLE_GPL_THIRD_PARTIES
 	values: 0 (GPL third parties disabled) or 1 (GPL third parties enabled), default value: 1
-	GPL third parties are: X264, ZRTP and G729
+	GPL third parties are: X264 and G729
 
 BUILD_VIDEO
 	values: 0 (no video) or 1 (video enabled), default value: 1
@@ -62,8 +64,8 @@ BUILD_AMRNB
 BUILD_AMRWB
 	values: 0 (don't build amrwb codec), 1 (build your own amrwb codec): default value: 1
 
-BUILD_GPLV3_ZRTP
-	values: 0 (don't support ZRTP), 1 (support ZRTP and make the whole program GPLv3), default value: 1
+BUILD_ZRTP
+	values: 0 (don't support ZRTP), 1 (support ZRTP), default value: 1
 
 BUILD_SILK            
 	values: 0 (don't build silk plugin), 1 (build silk) [silk is Skype nonfree patented audio codec], default value: 1

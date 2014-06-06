@@ -277,12 +277,6 @@ public class LinphoneTestManager implements LinphoneCoreListener {
 	}
 
 	@Override
-	public void authInfoRequested(LinphoneCore lc, String realm, String username) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
 	public void globalState(LinphoneCore lc, GlobalState state, String message) {
 		// TODO Auto-generated method stub
 		
@@ -444,5 +438,12 @@ public class LinphoneTestManager implements LinphoneCoreListener {
 	public void configuringStatus(LinphoneCore lc,
 			RemoteProvisioningState state, String message) {
 		// TODO Auto-generated method stub
+	}
+
+	@Override
+	public void authInfoRequested(LinphoneCore lc, String realm,
+			String username, String Domain) {
+		// TODO Auto-generated method stub
+		
 	}
 }

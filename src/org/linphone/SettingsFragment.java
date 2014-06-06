@@ -145,17 +145,12 @@ public class SettingsFragment extends PreferencesListFragment implements EcCalib
 			hidePreference(R.string.pref_push_notification_key);
 		}
 
-		if (!Version.isVideoCapable()) {
+		if (!Version.isVideoCapable() || !LinphoneManager.getLcIfManagerNotDestroyedOrNull().isVideoSupported()) {
 			uncheckAndHidePreference(R.string.pref_video_enable_key);
 		} else {
 			if (!AndroidCameraConfiguration.hasFrontCamera()) {
 				uncheckAndHidePreference(R.string.pref_video_use_front_camera_key);
 			}
-		}
-		
-		if (!LinphoneManager.getLc().needsEchoCalibration()) {
-			uncheckAndHidePreference(R.string.pref_echo_cancellation_key);
-			hidePreference(R.string.pref_echo_canceller_calibration_key);
 		}
 		
 		if (!LinphoneManager.getLc().isTunnelAvailable()) {

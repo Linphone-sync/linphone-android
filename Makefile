@@ -33,23 +33,20 @@ ENABLE_GPL_THIRD_PARTIES=1
 #default options, can be overidden using make OPTION=value .
 
 ifeq ($(ENABLE_GPL_THIRD_PARTIES),1)
-BUILD_X264=1
 BUILD_G729=1
-BUILD_GPLV3_ZRTP=1
 else
 #x264 and g729 requires additional licensing agreements.
 BUILD_X264=0
 BUILD_G729=0
-#zrtpcpp is GPL.
-BUILD_GPLV3_ZRTP=0
 endif
 
 NDK_DEBUG=0
 BUILD_VIDEO=1
+BUILD_OPENH264=1
 BUILD_UPNP=1
 BUILD_AMRNB=full # 0, light or full
 BUILD_AMRWB=1
-
+BUILD_ZRTP=1
 BUILD_SILK=1
 BUILD_TUNNEL=0
 BUILD_WEBRTC_AECM=1
@@ -204,6 +201,57 @@ clean-x264:
 	rm -rf $(X264_BUILD_DIR)/arm && \
 	rm -rf $(X264_BUILD_DIR)/x86
 
+#openh264
+ifeq ($(BUILD_VIDEO),1)
+ifeq ($(BUILD_OPENH264), 1)
+BUILD_OPENH264_DEPS=build-openh264-arm
+ifeq ($(BUILD_FOR_X86), 1)
+	BUILD_OPENH264_DEPS+=build-openh264-x86
+endif
+endif
+endif
+
+OPENH264_SRC_DIR=$(TOPDIR)/submodules/externals/openh264
+OPENH264_BUILD_DIR=$(TOPDIR)/submodules/externals/build/openh264
+OPENH264_BUILD_DIR_ARM=$(OPENH264_BUILD_DIR)/arm
+OPENH264_BUILD_DIR_X86=$(OPENH264_BUILD_DIR)/x86
+
+$(OPENH264_SRC_DIR)/patch.stamp: $(TOPDIR)/patches/openh264-permissive.patch
+	cd $(OPENH264_SRC_DIR) && patch -p1 < $(TOPDIR)/patches/openh264-permissive.patch && touch $(OPENH264_SRC_DIR)/patch.stamp
+
+openh264-patch:	$(OPENH264_SRC_DIR)/patch.stamp
+
+openh264-install-headers:
+	mkdir -p $(OPENH264_SRC_DIR)/include/wels
+	rsync -rvLpgoc --exclude ".git"  $(OPENH264_SRC_DIR)/codec/api/svc/* $(OPENH264_SRC_DIR)/include/wels/.
+
+copy-openh264-x86: openh264-patch openh264-install-headers
+	mkdir -p $(OPENH264_BUILD_DIR)
+	mkdir -p $(OPENH264_BUILD_DIR_X86) 
+	cd $(OPENH264_BUILD_DIR_X86) \
+	&& rsync -rvLpgoc --exclude ".git"  $(OPENH264_SRC_DIR)/* .
+
+copy-openh264-arm: openh264-patch openh264-install-headers
+	mkdir -p $(OPENH264_BUILD_DIR)
+	mkdir -p $(OPENH264_BUILD_DIR_ARM) 
+	cd $(OPENH264_BUILD_DIR_ARM) \
+	&& rsync -rvLpgoc --exclude ".git"  $(OPENH264_SRC_DIR)/* .
+
+build-openh264-x86: copy-openh264-x86
+	cd $(OPENH264_BUILD_DIR_X86) && \
+	make libraries -j $(NUMCPUS) OS=android ARCH=x86 NDKROOT=$(NDK_PATH) TARGET=$(ANDROID_MOST_RECENT_TARGET)
+
+build-openh264-arm: copy-openh264-arm
+	cd $(OPENH264_BUILD_DIR_ARM) && \
+	make libraries -j $(NUMCPUS) OS=android ARCH=arm NDKROOT=$(NDK_PATH) TARGET=$(ANDROID_MOST_RECENT_TARGET)
+
+build-openh264: $(BUILD_OPENH264_DEPS)
+
+clean-openh264:
+	cd $(OPENH264_SRC_DIR) && git clean -dfx && git reset --hard
+	rm -rf $(OPENH264_BUILD_DIR_ARM)
+	rm -rf $(OPENH264_BUILD_DIR_X86)
+
 #libvpx
 ifeq ($(BUILD_VIDEO),1)
 BUILD_VPX_DEPS=$(LIBVPX_SRC_DIR)/configure_android_x86_patch_applied.txt $(LIBVPX_BUILD_DIR)/arm/libvpx.a
@@ -260,19 +308,6 @@ prepare-silk: $(LIBMSSILK_BUILD_DIR)/sdk/SILK_SDK_SRC_v1.0.8/SILK_SDK_SRC_ARM_v1
 else
 prepare-silk:
 endif
-
-
-#Zrtp
-#$(TOPDIR)/submodules/externals/libzrtpcpp/libzrtpcpp-config.h : $(TOPDIR)/submodules/externals/build/libzrtpcpp/libzrtpcpp-config.h
-#	@cd $(TOPDIR)/submodules/externals/libzrtpcpp/ && \
-#	cp ../build/libzrtpcpp/libzrtpcpp-config.h . \
-	|| ( echo "ZRTP prepare state failed." ; exit 1 )
-#ifeq ($(BUILD_GPLV3_ZRTP), 1)
-#prepare-zrtp: $(TOPDIR)/submodules/externals/libzrtpcpp/libzrtpcpp-config.h
-#else
-prepare-zrtp:
-#endif
-
 
 
 #srtp
@@ -344,13 +379,13 @@ $(SQLITE_BASENAME).zip:
 	curl -sO $(SQLITE_URL)
 
 #Build targets
-prepare-sources: build-ffmpeg build-x264 prepare-ilbc build-vpx prepare-silk prepare-srtp prepare-mediastreamer2 prepare-antlr3 prepare-belle-sip $(TOPDIR)/res/raw/rootca.pem prepare-sqlite3
+prepare-sources: build-ffmpeg build-x264 build-openh264 prepare-ilbc build-vpx prepare-silk prepare-srtp prepare-mediastreamer2 prepare-antlr3 prepare-belle-sip $(TOPDIR)/res/raw/rootca.pem prepare-sqlite3
 
 
 GENERATE_OPTIONS = NDK_DEBUG=$(NDK_DEBUG) BUILD_FOR_X86=$(BUILD_FOR_X86) \
 	BUILD_AMRNB=$(BUILD_AMRNB) BUILD_AMRWB=$(BUILD_AMRWB) BUILD_SILK=$(BUILD_SILK) BUILD_G729=$(BUILD_G729) BUILD_OPUS=$(BUILD_OPUS) \
-	BUILD_VIDEO=$(BUILD_VIDEO) BUILD_X264=$(BUILD_X264) \
-	BUILD_UPNP=$(BUILD_UPNP) BUILD_GPLV3_ZRTP=$(BUILD_GPLV3_ZRTP) BUILD_WEBRTC_AECM=$(BUILD_WEBRTC_AECM) BUILD_WEBRTC_ISAC=$(BUILD_WEBRTC_ISAC)
+	BUILD_VIDEO=$(BUILD_VIDEO) BUILD_X264=$(BUILD_X264) BUILD_OPENH264=$(BUILD_OPENH264) \
+	BUILD_UPNP=$(BUILD_UPNP) BUILD_ZRTP=$(BUILD_ZRTP) BUILD_WEBRTC_AECM=$(BUILD_WEBRTC_AECM) BUILD_WEBRTC_ISAC=$(BUILD_WEBRTC_ISAC)
 
 
 LIBLINPHONE_OPTIONS = $(GENERATE_OPTIONS) \
@@ -427,8 +462,9 @@ clean-ndk-build:
 	fi
 
 clean: clean-ndk-build
+	ant clean
 
-veryclean: clean clean-ffmpeg clean-x264 clean-vpx
+veryclean: clean clean-ffmpeg clean-x264 clean-openh264 clean-vpx
 
 .PHONY: clean install-apk run-linphone
 
