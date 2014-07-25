@@ -25,7 +25,7 @@ import org.linphone.core.LinphoneChatMessage;
 import org.linphone.core.LinphoneChatRoom;
 import org.linphone.core.LinphoneCore.GlobalState;
 import org.linphone.core.LinphoneCore.RegistrationState;
-import org.linphone.core.LinphoneProxyConfig;
+import org.linphone.core.LinphoneCore.RemoteProvisioningState;
 
 import android.content.Context;
 import android.net.ConnectivityManager;
@@ -80,5 +80,8 @@ public interface LinphoneSimpleListener {
 	}
 	public static interface LinphoneOnComposingReceivedListener extends LinphoneSimpleListener {
 		void onComposingReceived(LinphoneChatRoom room);
+	}
+	public static interface LinphoneOnRemoteProvisioningListener extends LinphoneSimpleListener {
+		void onConfiguringStatus(RemoteProvisioningState state);
 	}
 }

@@ -250,6 +250,7 @@
 	<string name="pref_help_outbound_proxy">Отправить все звонки через SIP прокси</string>
 	<string name="pref_help_username">Например: john если Ваш адрес john@sip.example.org</string>
 	<string name="pref_help_domain">sip.example.org если Ваш адрес john@sip.example.org</string>
+	<string name="pref_help_password">You have to re-enter your password if you edit the username and/or the domain</string>
 	
 	<string name="delete">Удалить</string>
 	<string name="chat">Чат</string>
@@ -451,4 +452,8 @@
 	<string name="unread_messages">%i unread messages</string>
 	
 	<string name="retry">Retry</string>
+	
+	<string name="remote_provisioning_failure">Failed to download or apply remote provisioning profile...</string>
+	<string name="remote_provisioning_again_title">Remote provisioning</string>
+	<string name="remote_provisioning_again_message">Do you want to change the provisioning URI ?</string>
 </resources>

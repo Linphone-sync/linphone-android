@@ -248,6 +248,7 @@
 	<string name="pref_help_outbound_proxy">Route all calls through SIP proxy</string>
 	<string name="pref_help_username">Example: john if your account is john@sip.example.org</string>
 	<string name="pref_help_domain">sip.example.org if your account is john@sip.example.org</string>
+	<string name="pref_help_password">You have to re-enter your password if you edit your username and/or the domain</string>
 	
 	<string name="delete">Delete</string>
 	<string name="chat">Chat</string>
@@ -451,4 +452,8 @@
 	<string name="unread_messages">%i unread messages</string>
 	
 	<string name="retry">Retry</string>
+	
+	<string name="remote_provisioning_failure">Failed to download or apply remote provisioning profile...</string>
+	<string name="remote_provisioning_again_title">Remote provisioning</string>
+	<string name="remote_provisioning_again_message">Do you want to change the provisioning URI ?</string>
 </resources>

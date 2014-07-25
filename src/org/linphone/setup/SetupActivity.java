@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 import org.linphone.LinphoneManager;
 import org.linphone.LinphonePreferences;
+import org.linphone.LinphoneUtils;
 import org.linphone.LinphonePreferences.AccountBuilder;
 import org.linphone.LinphoneSimpleListener.LinphoneOnRegistrationStateChangedListener;
 import org.linphone.R;
@@ -169,7 +170,8 @@ public class SetupActivity extends FragmentActivity implements OnClickListener {
 	}
 
 	private void launchEchoCancellerCalibration(boolean sendEcCalibrationResult) {
-		if (LinphoneManager.getLc().needsEchoCalibration() && mPrefs.isFirstLaunch()) {
+		boolean needsEchoCalibration = LinphoneManager.getLc().needsEchoCalibration();
+		if (needsEchoCalibration && mPrefs.isFirstLaunch()) {
 			EchoCancellerCalibrationFragment fragment = new EchoCancellerCalibrationFragment();
 			fragment.enableEcCalibrationResultSending(sendEcCalibrationResult);
 			changeFragment(fragment);
@@ -179,6 +181,9 @@ public class SetupActivity extends FragmentActivity implements OnClickListener {
 			next.setEnabled(false);
 			cancel.setEnabled(false);
 		} else {
+			if (mPrefs.isFirstLaunch()) {
+				mPrefs.setEchoCancellation(false);
+			}
 			success();
 		}		
 	}
@@ -289,8 +294,12 @@ public class SetupActivity extends FragmentActivity implements OnClickListener {
 		boolean useLinphoneDotOrgCustomPorts = getResources().getBoolean(R.bool.use_linphone_server_ports);
 		AccountBuilder builder = new AccountBuilder(LinphoneManager.getLc())
 		.setUsername(username)
-		.setDomain(domain)
-		.setPassword(password);
+		.setDomain(domain);
+		if (getResources().getBoolean(R.bool.store_ha1_passwords)) {
+			builder = builder.setHa1(LinphoneUtils.md5Hash(username, password, domain));
+		} else {
+			builder = builder.setPassword(password);
+		}
 		
 		if (isMainAccountLinphoneDotOrg && useLinphoneDotOrgCustomPorts) {
 			if (getResources().getBoolean(R.bool.disable_all_security_features_for_markets)) {
@@ -303,9 +312,14 @@ public class SetupActivity extends FragmentActivity implements OnClickListener {
 			}
 			
 			builder.setExpires("604800")
-			.setOutboundProxyEnabled(true);
-			builder.setAvpfEnabled(true);
-			builder.setAvpfRRInterval(3);
+			.setOutboundProxyEnabled(true)
+			.setAvpfEnabled(true)
+			.setAvpfRRInterval(3)
+			.setQualityReportingCollector("sip:voip-metrics@sip.linphone.org")
+			.setQualityReportingEnabled(true)
+			.setQualityReportingInterval(180);
+			
+			
 			mPrefs.setStunServer(getString(R.string.default_stun));
 			mPrefs.setIceEnabled(true);
 			mPrefs.setPushNotificationEnabled(true);
@@ -313,7 +327,8 @@ public class SetupActivity extends FragmentActivity implements OnClickListener {
 			String forcedProxy = getResources().getString(R.string.setup_forced_proxy);
 			if (!TextUtils.isEmpty(forcedProxy)) {
 				builder.setProxy(forcedProxy)
-				.setOutboundProxyEnabled(true);
+				.setOutboundProxyEnabled(true)
+				.setAvpfRRInterval(5);
 			}
 		}
 		
