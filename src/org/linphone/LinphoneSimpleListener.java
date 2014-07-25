@@ -26,6 +26,7 @@ import org.linphone.core.LinphoneChatRoom;
 import org.linphone.core.LinphoneCore.GlobalState;
 import org.linphone.core.LinphoneCore.RegistrationState;
 import org.linphone.core.LinphoneCore.RemoteProvisioningState;
+import org.linphone.core.LinphoneProxyConfig;
 
 import android.content.Context;
 import android.net.ConnectivityManager;
