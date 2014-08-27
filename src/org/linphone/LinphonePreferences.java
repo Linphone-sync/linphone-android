@@ -166,7 +166,6 @@ public class LinphonePreferences {
 		private String tempDisplayName;
 		private String tempUserId;
 		private String tempPassword;
-		private String tempHa1;
 		private String tempDomain;
 		private String tempProxy;
 		private String tempFriendlyname;
@@ -204,11 +203,6 @@ public class LinphonePreferences {
 
 		public AccountBuilder setPassword(String password) {
 			tempPassword = password;
-			return this;
-		}
-
-		public AccountBuilder setHa1(String ha1) {
-			tempHa1 = ha1;
 			return this;
 		}
 
@@ -322,8 +316,9 @@ public class LinphonePreferences {
 			prxCfg.enableQualityReporting(tempQualityReportingEnabled);
 			prxCfg.setQualityReportingCollector(tempQualityReportingCollector);
 			prxCfg.setQualityReportingInterval(tempQualityReportingInterval);
+			prxCfg.setRealm("sip.linphone.org");
 
-			LinphoneAuthInfo authInfo = LinphoneCoreFactory.instance().createAuthInfo(tempUsername, tempUserId, tempPassword, tempHa1, null, tempDomain);
+			LinphoneAuthInfo authInfo = LinphoneCoreFactory.instance().createAuthInfo(tempUsername, tempUserId, tempPassword, null, null, tempDomain);
 
 			lc.addProxyConfig(prxCfg);
 			lc.addAuthInfo(authInfo);
@@ -474,18 +469,6 @@ public class LinphonePreferences {
 		LinphoneAuthInfo authInfo = getAuthInfo(n);
 		return authInfo == null ? null : authInfo.getPassword();
 	}
-	
-	public void setAccountHa1(int n, String ha1) {
-		LinphoneAuthInfo info = getClonedAuthInfo(n);
-		info.setHa1(ha1);
-		saveAuthInfo(info);
-	}
-
-	public String getAccountHa1(int n) {
-		LinphoneAuthInfo authInfo = getAuthInfo(n);
-		return authInfo == null ? null : authInfo.getHa1();
-	}
-
 	public void setAccountDomain(int n, String domain) {
 		String identity = "sip:" + getAccountUsername(n) + "@" + domain;
 
@@ -1094,5 +1077,21 @@ public class LinphonePreferences {
 
 	public boolean isFirstRemoteProvisioning() {
 		return getConfig().getBool("app", "first_remote_provisioning", true);
+	}
+
+	public boolean isAdaptativeRateControlEnabled() {
+		return getLc().isAdaptiveRateControlEnabled();
+	}
+	
+	public void enableAdaptativeRateControl(boolean enabled) {
+		getLc().enableAdaptiveRateControl(enabled);
+	}
+	
+	public int getCodecBitrateLimit() {
+		return getConfig().getInt("audio", "codec_bitrate_limit", 36);
+	}
+	
+	public void setCodecBitrateLimit(int bitrate) {
+		getConfig().setInt("audio", "codec_bitrate_limit", bitrate);
 	}
 }

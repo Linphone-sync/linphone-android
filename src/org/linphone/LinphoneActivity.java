@@ -155,7 +155,7 @@ public class LinphoneActivity extends FragmentActivity implements
 				startActivityForResult(new Intent().setClass(this, SetupActivity.class), FIRST_LOGIN_ACTIVITY);
 			}
 		}
-		
+
 		setContentView(R.layout.main);
 		instance = this;
 		fragmentsHistory = new ArrayList<FragmentsAvailable>();
@@ -1273,6 +1273,12 @@ public class LinphoneActivity extends FragmentActivity implements
 			LinphoneCall.State callState = call.getState();
 			if (callState == State.IncomingReceived) {
 				startActivity(new Intent(this, IncomingCallActivity.class));
+			} else {
+				if (call.getCurrentParamsCopy().getVideoEnabled()) {
+					startVideoActivity(call);
+				} else {
+					startIncallActivity(call);
+				}
 			}
 		}
 	}

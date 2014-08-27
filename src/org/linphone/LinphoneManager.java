@@ -811,7 +811,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 	}
 	private synchronized void allowSIPCalls() {
 		if (savedMaxCallWhileGsmIncall == 0) {
-			Log.w("SIP calls are already allowed as no GSM call knowned to be running");
+			Log.w("SIP calls are already allowed as no GSM call known to be running");
 			return;
 		}
 		mLc.setMaxCalls(savedMaxCallWhileGsmIncall);
@@ -887,6 +887,10 @@ public class LinphoneManager implements LinphoneCoreListener {
 				Log.w("Using soft volume audio hack");
 				adjustVolume(0); // Synchronize
 			}
+		}
+		
+		if (state == State.OutgoingEarlyMedia) {
+			Compatibility.setAudioManagerInCallMode(mAudioManager);
 		}
 
 		if (state == State.CallReleased || state == State.Error) {

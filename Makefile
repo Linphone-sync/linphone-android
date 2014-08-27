@@ -18,7 +18,7 @@ X86_SYSROOT=$(shell find "${NDK_PATH}" -name arch-x86 -print | \
 	print $$0 " " b[2]}' | \
 	sort -g -k 2 | \
 	awk '{ print $$1 }' | tail -1)
-NUMCPUS=$(shell grep -c '^processor' /proc/cpuinfo || echo "4" )
+NUMCPUS=$(shell grep -c '^processor' /proc/cpuinfo 2>/dev/null || echo "4" )
 TOPDIR=$(shell pwd)
 LINPHONE_VERSION=$(shell cd submodules/linphone && git describe --always)
 LINPHONE_ANDROID_DEBUG_VERSION=$(shell git describe --always)
@@ -113,7 +113,7 @@ $(LIBILBC_BUILD_DIR)/Makefile: $(LIBILBC_SRC_DIR)/configure
 $(LIBILBC_BUILD_DIR)/src/iLBC_decode.c: $(LIBILBC_BUILD_DIR)/Makefile
 	cd $(LIBILBC_BUILD_DIR)/downloads && make \
 	|| ( echo "iLBC prepare stage failed" ; exit 1 )
-	
+
 prepare-ilbc: $(LIBILBC_BUILD_DIR)/src/iLBC_decode.c
 
 #ffmpeg
@@ -228,13 +228,13 @@ openh264-install-headers:
 
 copy-openh264-x86: openh264-patch openh264-install-headers
 	mkdir -p $(OPENH264_BUILD_DIR)
-	mkdir -p $(OPENH264_BUILD_DIR_X86) 
+	mkdir -p $(OPENH264_BUILD_DIR_X86)
 	cd $(OPENH264_BUILD_DIR_X86) \
 	&& rsync -rvLpgoc --exclude ".git"  $(OPENH264_SRC_DIR)/* .
 
 copy-openh264-arm: openh264-patch openh264-install-headers
 	mkdir -p $(OPENH264_BUILD_DIR)
-	mkdir -p $(OPENH264_BUILD_DIR_ARM) 
+	mkdir -p $(OPENH264_BUILD_DIR_ARM)
 	cd $(OPENH264_BUILD_DIR_ARM) \
 	&& rsync -rvLpgoc --exclude ".git"  $(OPENH264_SRC_DIR)/* .
 
@@ -295,12 +295,15 @@ BUILD_MATROSKA_DEPS=$(LIBEBML2_BUILD_DIR)/arm/libebml2.a $(LIBMATROSKA_BUILD_DIR
 ifeq ($(BUILD_FOR_X86), 1)
 BUILD_MATROSKA_DEPS+=$(LIBEBML2_BUILD_DIR)/x86/libebml2.a $(LIBMATROSKA_BUILD_DIR)/x86/libmatroska2.a
 endif #BUILD_FOR_X86
+BUILD_MATROSKA_DEPS += $(LIBEBML2_BUILD_DIR)/include $(LIBMATROSKA_BUILD_DIR)/include
 endif #BUILD_MATROSKA
 endif #BUILD_VIDEO
 LIBMATROSKA_SRC_DIR=$(TOPDIR)/submodules/externals/libmatroska
 LIBMATROSKA_BUILD_DIR=$(TOPDIR)/submodules/externals/build/libmatroska
 LIBEBML2_BUILD_DIR=$(TOPDIR)/submodules/externals/build/libebml2
 COREMAKE=$(LIBMATROSKA_SRC_DIR)/corec/tools/coremake/coremake
+
+build-matroska: $(BUILD_MATROSKA_DEPS)
 
 $(LIBEBML2_BUILD_DIR)/arm/libebml2.a: $(LIBMATROSKA_SRC_DIR)/release/android_armv7/libebml2.a
 	mkdir -p $(LIBEBML2_BUILD_DIR)/arm
@@ -309,7 +312,7 @@ $(LIBEBML2_BUILD_DIR)/arm/libebml2.a: $(LIBMATROSKA_SRC_DIR)/release/android_arm
 $(LIBMATROSKA_BUILD_DIR)/arm/libmatroska2.a: $(LIBMATROSKA_SRC_DIR)/release/android_armv7/libmatroska2.a
 	mkdir -p $(LIBMATROSKA_BUILD_DIR)/arm
 	cp $< $@
-	
+
 $(LIBEBML2_BUILD_DIR)/x86/libebml2.a: $(LIBMATROSKA_SRC_DIR)/release/android_x86/libebml2.a
 	mkdir -p $(LIBEBML2_BUILD_DIR)/x86
 	cp $< $@
@@ -318,32 +321,33 @@ $(LIBMATROSKA_BUILD_DIR)/x86/libmatroska2.a: $(LIBMATROSKA_SRC_DIR)/release/andr
 	mkdir -p $(LIBMATROSKA_BUILD_DIR)/x86
 	cp $< $@
 
-$(LIBMATROSKA_SRC_DIR)/release/android_armv7/libebml2.a: $(LIBMATROSKA_SRC_DIR)/coremake_android_armv7.txt
+$(LIBMATROSKA_SRC_DIR)/release/android_armv7/libebml2.a: $(LIBMATROSKA_SRC_DIR)/builded.txt
+
+$(LIBMATROSKA_SRC_DIR)/release/android_armv7/libmatroska2.a: $(LIBMATROSKA_SRC_DIR)/builded.txt
+
+$(LIBMATROSKA_SRC_DIR)/release/android_x86/libebml2.a: $(LIBMATROSKA_SRC_DIR)/builded.txt
+
+$(LIBMATROSKA_SRC_DIR)/release/android_x86/libmatroska2.a: $(LIBMATROSKA_SRC_DIR)/builded.txt
+
+$(LIBMATROSKA_SRC_DIR)/builded.txt: $(COREMAKE) $(LIBMATROSKA_SRC_DIR)/configure_config_h.txt $(LIBMATROSKA_SRC_DIR)/fix_coremake.txt
+	cd $(LIBMATROSKA_SRC_DIR) ; $(COREMAKE) android_armv7 -f $(LIBMATROSKA_SRC_DIR)/root.proj
 	make -C $(LIBMATROSKA_SRC_DIR) ebml2
-
-$(LIBMATROSKA_SRC_DIR)/release/android_armv7/libmatroska2.a: $(LIBMATROSKA_SRC_DIR)/coremake_android_armv7.txt
 	make -C $(LIBMATROSKA_SRC_DIR) matroska2
-	
-$(LIBMATROSKA_SRC_DIR)/release/android_x86/libebml2.a: $(LIBMATROSKA_SRC_DIR)/coremake_android_x86.txt
+ifeq ($(BUILD_FOR_X86), 1)
+	cd $(LIBMATROSKA_SRC_DIR) ; $(COREMAKE) android_x86 -f $(LIBMATROSKA_SRC_DIR)/root.proj
 	make -C $(LIBMATROSKA_SRC_DIR) ebml2
-
-$(LIBMATROSKA_SRC_DIR)/release/android_x86/libmatroska2.a: $(LIBMATROSKA_SRC_DIR)/coremake_android_x86.txt
 	make -C $(LIBMATROSKA_SRC_DIR) matroska2
-
-$(LIBMATROSKA_SRC_DIR)/coremake_android_armv7.txt: $(COREMAKE) $(LIBMATROSKA_SRC_DIR)/configure_config_h.txt $(LIBMATROSKA_SRC_DIR)/fix_coremake.txt
-	cd $(LIBMATROSKA_SRC_DIR); $(COREMAKE) android_armv7 -f $(LIBMATROSKA_SRC_DIR)/root.proj
-	rm -f $(LIBMATROSKA_SRC_DIR)/coremake_*.txt;
+endif
 	touch $@
 
-$(LIBMATROSKA_SRC_DIR)/coremake_android_x86.txt: $(COREMAKE) $(LIBMATROSKA_SRC_DIR)/configure_config_h.txt $(LIBMATROSKA_SRC_DIR)/fix_coremake.txt
-	cd $(LIBMATROSKA_SRC_DIR); $(COREMAKE) android_x86 -f $(LIBMATROSKA_SRC_DIR)/root.proj
-	rm -f $(LIBMATROSKA_SRC_DIR)/coremake_*.txt
-	touch $@
-		
 $(COREMAKE):
 	make -C $(LIBMATROSKA_SRC_DIR)/corec/tools/coremake
 
-$(LIBMATROSKA_SRC_DIR)/configure_config_h.txt:
+$(LIBMATROSKA_SRC_DIR)/configure_config_h.txt: $(LIBMATROSKA_BUILD_DIR)/config.h
+	cp $(LIBMATROSKA_BUILD_DIR)/config.h $(LIBMATROSKA_SRC_DIR)
+	echo "#define COREMAKE_STATIC" >> $(LIBMATROSKA_SRC_DIR)/config.h
+	echo "#define COREMAKE_UNICODE" >> $(LIBMATROSKA_SRC_DIR)/config.h
+	echo "#define COREMAKE_CONFIG_HELPER" >> $(LIBMATROSKA_SRC_DIR)/config.h
 	echo "#define CONFIG_ANDROID_NDK $(NDK_PATH)" >> $(LIBMATROSKA_SRC_DIR)/config.h
 	echo "#define CONFIG_ANDROID_VERSION $(ANDROID_MOST_RECENT_TARGET)" >> $(LIBMATROSKA_SRC_DIR)/config.h
 	echo "#define CONFIG_ANDROID_PLATFORM linux-x86_64" >> $(LIBMATROSKA_SRC_DIR)/config.h
@@ -353,13 +357,21 @@ $(LIBMATROSKA_SRC_DIR)/fix_coremake.txt:
 	cd $(LIBMATROSKA_SRC_DIR); patch -p0 < ../build/libmatroska/coremake_fix.patch
 	cp $(LIBMATROSKA_BUILD_DIR)/android_x86.build $(LIBMATROSKA_SRC_DIR)/corec/tools/coremake
 	touch $@
-	
-build-matroska: $(BUILD_MATROSKA_DEPS)
+
+$(LIBEBML2_BUILD_DIR)/include: $(LIBMATROSKA_SRC_DIR)/libebml2/ebml $(LIBMATROSKA_SRC_DIR)/corec/corec $(LIBMATROSKA_BUILD_DIR)/config.h
+	mkdir -p $@
+	cp -r $(LIBMATROSKA_SRC_DIR)/libebml2/ebml $(LIBMATROSKA_SRC_DIR)/corec/corec $@
+	cp $(LIBMATROSKA_BUILD_DIR)/config.h $(LIBEBML2_BUILD_DIR)/include/corec
+
+$(LIBMATROSKA_BUILD_DIR)/include: $(LIBMATROSKA_SRC_DIR)/libmatroska2/matroska
+	mkdir -p $@
+	cp -r $(LIBMATROSKA_SRC_DIR)/libmatroska2/matroska $@
 
 clean-matroska:
-	rm -rf $(LIBMATROSKA_BUILD_DIR)/{arm,x86}
-	rm -rf $(LIBEBML2_BUILD_DIR)/{arm,x86}
+	rm -rf $(LIBMATROSKA_BUILD_DIR)/{arm,x86,include}
+	rm -rf $(LIBEBML2_BUILD_DIR)/{arm,x86,include}
 	cd $(LIBMATROSKA_SRC_DIR); $(COREMAKE) clean
+	rm -rf $(LIBMATROSKA_SRC_DIR)/builded.txt
 
 #SILK
 LIBMSSILK_SRC_DIR=$(TOPDIR)/submodules/mssilk
@@ -405,15 +417,15 @@ ANLTR3_SRC_DIR=$(TOPDIR)/submodules/externals/antlr3/runtime/C/include/
 ANTLR3_BUILD_DIR=$(ANTLR3_SRC_DIR)
 $(ANLTR3_SRC_DIR)/antlr3config.h: $(TOPDIR)/submodules/externals/build/antlr3/antlr3config.h
 	cp $(TOPDIR)/submodules/externals/build/antlr3/antlr3config.h $(ANLTR3_SRC_DIR)
-prepare-antlr3: $(ANLTR3_SRC_DIR)/antlr3config.h 
+prepare-antlr3: $(ANLTR3_SRC_DIR)/antlr3config.h
 
 %.tokens: %.g
-	$(ANTLR) -make -fo $(dir $^) $^ 
+	$(ANTLR) -make -fo $(dir $^) $^
 
 #Belle-sip
 BELLESIP_SRC_DIR=$(TOPDIR)/submodules/belle-sip
 BELLESIP_BUILD_DIR=$(BELLESIP_SRC_DIR)
-prepare-belle-sip: $(BELLESIP_SRC_DIR)/src/grammars/belle_sip_message.tokens $(BELLESIP_SRC_DIR)/src/grammars/belle_sdp.tokens 
+prepare-belle-sip: $(BELLESIP_SRC_DIR)/src/grammars/belle_sip_message.tokens $(BELLESIP_SRC_DIR)/src/grammars/belle_sdp.tokens
 
 #CUnit
 prepare-cunit: $(TOPDIR)/submodules/externals/cunit/CUnit/Headers/*.h
@@ -423,9 +435,9 @@ prepare-cunit: $(TOPDIR)/submodules/externals/cunit/CUnit/Headers/*.h
 $(TOPDIR)/res/raw/rootca.pem:
 	 HTTPS_CA_DIR=$(HTTPS_CA_DIR) $(TOPDIR)/submodules/linphone/scripts/mk-ca-bundle.pl $@
 
-prepare-liblinphone_tester: $(TOPDIR)/submodules/linphone/tester/tester_hosts $(TOPDIR)/res/raw/rootca.pem
+prepare-liblinphone_tester: $(TOPDIR)/submodules/linphone/tester/tester_hosts $(TOPDIR)/res/raw/rootca.pem $(TOPDIR)/submodules/linphone/tester/messages.db
 	rm -rf liblinphone_tester/assets/config_files
-	mkdir -p liblinphone_tester/assets/config_files 
+	mkdir -p liblinphone_tester/assets/config_files
 	for file in $^; do \
 	cp -rf $$file $(TOPDIR)/liblinphone_tester/assets/config_files/. \
 	;done
@@ -449,7 +461,7 @@ $(SQLITE_BUILD_DIR)/sqlite3.c: $(SQLITE_BASENAME).zip
 	mv "$(SQLITE_BUILD_DIR)/$(SQLITE_BASENAME)/sqlite3".? $(SQLITE_BUILD_DIR)/
 	rmdir "$(SQLITE_BUILD_DIR)/$(SQLITE_BASENAME)/"
 
-$(SQLITE_BASENAME).zip:	
+$(SQLITE_BASENAME).zip:
 	curl -sO $(SQLITE_URL)
 
 #Build targets
@@ -458,7 +470,7 @@ prepare-sources: build-ffmpeg build-x264 build-openh264 prepare-ilbc build-vpx b
 
 GENERATE_OPTIONS = NDK_DEBUG=$(NDK_DEBUG) BUILD_FOR_X86=$(BUILD_FOR_X86) \
 	BUILD_AMRNB=$(BUILD_AMRNB) BUILD_AMRWB=$(BUILD_AMRWB) BUILD_SILK=$(BUILD_SILK) BUILD_G729=$(BUILD_G729) BUILD_OPUS=$(BUILD_OPUS) \
-	BUILD_VIDEO=$(BUILD_VIDEO) BUILD_X264=$(BUILD_X264) BUILD_OPENH264=$(BUILD_OPENH264) \
+	BUILD_VIDEO=$(BUILD_VIDEO) BUILD_X264=$(BUILD_X264) BUILD_OPENH264=$(BUILD_OPENH264) BUILD_MATROSKA=$(BUILD_MATROSKA) \
 	BUILD_UPNP=$(BUILD_UPNP) BUILD_ZRTP=$(BUILD_ZRTP) BUILD_WEBRTC_AECM=$(BUILD_WEBRTC_AECM) BUILD_WEBRTC_ISAC=$(BUILD_WEBRTC_ISAC)
 
 
@@ -493,7 +505,7 @@ update-mediastreamer2-project:
 liblinphone_tester: prepare-sources prepare-cunit prepare-liblinphone_tester javah
 	$(NDK_PATH)/ndk-build -C liblinphone_tester $(LIBLINPHONE_OPTIONS) -j$(NUMCPUS) TARGET_PLATFORM=android-14
 
-javah: 
+javah:
 	ant javah
 
 generate-apk: generate-libs
@@ -525,7 +537,7 @@ run-basic-tests:
 	$(MAKE) -C tests run-basic-tests
 
 run-all-tests:
-	ant partial-clean 
+	ant partial-clean
 	$(MAKE) -C tests run-all-tests
 
 clean-ndk-build:
@@ -538,12 +550,11 @@ clean-ndk-build:
 clean: clean-ndk-build
 	ant clean
 
-veryclean: clean clean-ffmpeg clean-x264 clean-openh264 clean-vpx
+veryclean: clean clean-ffmpeg clean-x264 clean-openh264 clean-vpx clean-matroska
 
 .PHONY: clean install-apk run-linphone
 
-generate-sdk: generate-apk
-	ant liblinphone-android-sdk
+generate-sdk: liblinphone-android-sdk
 
 liblinphone-android-sdk: generate-apk
 	ant liblinphone-android-sdk

@@ -33,6 +33,8 @@ import android.preference.Preference.OnPreferenceClickListener;
 import android.preference.PreferenceCategory;
 import android.preference.PreferenceScreen;
 import android.text.InputType;
+import android.text.method.PasswordTransformationMethod;
+import android.view.View;
 
 /**
  * @author Sylvain Berfini
@@ -82,13 +84,7 @@ public class AccountPreferencesFragment extends PreferencesListFragment {
 	OnPreferenceChangeListener passwordChangedListener = new OnPreferenceChangeListener() {
 		@Override
 		public boolean onPreferenceChange(Preference preference, Object newValue) {
-			if (getResources().getBoolean(R.bool.store_ha1_passwords)
-					&& mPrefs.getAccountPassword(n) == null) {
-				String ha1 = LinphoneUtils.md5Hash(mPrefs.getAccountUsername(n), newValue.toString(), mPrefs.getAccountDomain(n));
-				mPrefs.setAccountHa1(n, ha1);
-			} else {
-				mPrefs.setAccountPassword(n, newValue.toString());
-			}
+			mPrefs.setAccountPassword(n, newValue.toString());
 			return true;
 		}		
 	};
@@ -192,7 +188,7 @@ public class AccountPreferencesFragment extends PreferencesListFragment {
 			String key = newValue.toString();
 			mPrefs.setAccountTransport(n, key);
 			preference.setSummary(mPrefs.getAccountTransportString(n));
-			
+			preference.setDefaultValue(mPrefs.getAccountTransportKey(n));
 			if (mProxyPreference != null) {
 				String newProxy = mPrefs.getAccountProxy(n);
 				mProxyPreference.setSummary(newProxy);
@@ -202,7 +198,27 @@ public class AccountPreferencesFragment extends PreferencesListFragment {
 			return true;
 		}
 	};
-	
+	private class CoolPasswordMethod extends PasswordTransformationMethod{
+		@Override
+		public CharSequence getTransformation(CharSequence source, View view) {
+			return new PasswordCharSequence(source);
+		}
+		private class PasswordCharSequence implements CharSequence {
+	        private CharSequence mSource;
+	        public PasswordCharSequence(CharSequence source) {
+	            mSource = source; 
+	        }
+	        public char charAt(int index) {
+	            return index==mSource.length()-1 ? mSource.charAt(index) : '*'; 
+	        }
+	        public int length() {
+	            return mSource.length(); 
+	        }
+	        public CharSequence subSequence(int start, int end) {
+	            return mSource.subSequence(start, end); // Return default
+	        }
+	    }
+	}
 	private void manageAccountPreferencesFields(PreferenceScreen parent) {
 		boolean isDefaultAccount = mPrefs.getDefaultAccountIndex() == n;
 		
@@ -220,8 +236,9 @@ public class AccountPreferencesFragment extends PreferencesListFragment {
     	userid.setSummary(userid.getText());
     	
     	EditTextPreference password = (EditTextPreference) account.getPreference(2);
-    	password.getEditText().setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+    	password.getEditText().setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
     	password.setText(mPrefs.getAccountPassword(n));
+    	password.getEditText().setTransformationMethod(new CoolPasswordMethod());
     	password.setOnPreferenceChangeListener(passwordChangedListener);
     	
     	EditTextPreference domain = (EditTextPreference) account.getPreference(3);
@@ -241,7 +258,7 @@ public class AccountPreferencesFragment extends PreferencesListFragment {
     	initializeTransportPreference(mTransportPreference);
     	mTransportPreference.setOnPreferenceChangeListener(transportChangedListener);	
     	mTransportPreference.setSummary(mPrefs.getAccountTransportString(n));
-		
+    	
 		mProxyPreference = (EditTextPreference) advanced.getPreference(1);
 		mProxyPreference.setText(mPrefs.getAccountProxy(n));
 		mProxyPreference.getEditText().setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
@@ -323,6 +340,7 @@ public class AccountPreferencesFragment extends PreferencesListFragment {
 		
 		pref.setSummary(mPrefs.getAccountTransportString(n));
 		pref.setDefaultValue(mPrefs.getAccountTransportKey(n));
+		pref.setValueIndex(entries.indexOf(mPrefs.getAccountTransportString(n)));
 	}
 	
 	private static void setListPreferenceValues(ListPreference pref, List<CharSequence> entries, List<CharSequence> values) {
