@@ -28,7 +28,7 @@ ANDROID_MOST_RECENT_TARGET=$(shell android list target -c | grep android | tail 
 SQLITE_VERSION=3071700
 SQLITE_BASENAME=sqlite-amalgamation-$(SQLITE_VERSION)
 SQLITE_URL=http://www.sqlite.org/2013/$(SQLITE_BASENAME).zip
-ENABLE_GPL_THIRD_PARTIES=1
+ENABLE_GPL_THIRD_PARTIES=0
 
 #default options, can be overidden using make OPTION=value .
 
@@ -42,7 +42,7 @@ endif
 
 NDK_DEBUG=0
 BUILD_VIDEO=1
-BUILD_OPENH264=1
+BUILD_OPENH264=0
 BUILD_UPNP=1
 BUILD_AMRNB=full # 0, light or full
 BUILD_AMRWB=1
