@@ -44,6 +44,7 @@
 			<class name="org.linphone.core.PresenceNoteImpl" />
 			<class name="org.linphone.core.PresencePersonImpl" />
 			<class name="org.linphone.core.PresenceServiceImpl" />
+			<class name="org.linphone.core.ErrorInfoImpl" />
 		</javah>
 		<javah outputfile="gen/xml2lpc_jni.h">
 			<classpath>
@@ -120,7 +121,7 @@
 		</exec>
 	</target>
 
-	<target name="liblinphone-sdk">
+	<target name="liblinphone-android-sdk">
 		<echo level="info">Creating library output jar file...</echo>
 		<property name="out.library.jar.file" location="${out.absolute.dir}/liblinphone.jar" />
 		<jar destfile="${out.library.jar.file}">
@@ -131,15 +132,15 @@
 				<include name="j2se/org/linphone/core/*.java"/>
 			</fileset>
 		</jar>
-		<zip destfile="liblinphone-sdk-${version.name}.zip">
+		<zip destfile="liblinphone-android-sdk-${version.name}.zip">
 			<zipfileset dir="libs" prefix="libs" includes="**/*.so" />
 			<zipfileset dir="${out.absolute.dir}" includes="liblinphone.jar" prefix="libs"/>
 		</zip>
 	</target>
 
-	<target name="liblinphone-android-sdk">
+	<target name="linphone-android-sdk">
                 <echo level="info">Creating library output jar file...</echo>
-                <property name="out.library.jar.file" location="${out.absolute.dir}/liblinphone.jar" />
+                <property name="out.library.jar.file" location="${out.absolute.dir}/linphone.jar" />
                 <jar destfile="${out.library.jar.file}">
                         <fileset dir="${out.classes.absolute.dir}"
                                 includes="org/linphone/mediastream/**/*.class  org/linphone/core/**/*.class org/linphone/**/*.class"/>
@@ -148,6 +149,10 @@
                                 <include name="j2se/org/linphone/core/*.java"/>
                         </fileset>
                 </jar>
+		<zip destfile="linphone-android-sdk-${version.name}.zip">
+                        <zipfileset dir="libs" prefix="libs" includes="**/*.so" />
+                        <zipfileset dir="${out.absolute.dir}" includes="linphone.jar" prefix="libs"/>
+                </zip>
         </target>
 
 </project>

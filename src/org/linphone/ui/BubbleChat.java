@@ -22,9 +22,9 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
-import org.linphone.LinphoneUtils;
 import org.linphone.R;
 import org.linphone.core.LinphoneChatMessage;
+import org.linphone.core.LinphoneChatMessage.State;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -88,11 +88,19 @@ public class BubbleChat {
 	private RelativeLayout view;
 	private ImageView statusView;
 	private Button downloadOrShow;
+	private String imageUrl, textMessage;
+	private LinphoneChatMessage.State state;
+	private LinphoneChatMessage nativeMessage;
+	private int id;
 	
-	public BubbleChat(final Context context, int id, String message, Bitmap image, long time, boolean isIncoming, LinphoneChatMessage.State status, final String url, int previousID) {
+	public BubbleChat(final Context context, int ID, String message, Bitmap image, long time, boolean isIncoming, LinphoneChatMessage.State status, String url) {
 		view = new RelativeLayout(context);
+		imageUrl = url;
+		textMessage = message;
+		state = status;
+		id = ID;
 		
-		LayoutParams layoutParams = new LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+		LayoutParams layoutParams = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
     	
     	if (isIncoming) {
     		layoutParams.addRule(RelativeLayout.ALIGN_PARENT_LEFT);
@@ -102,19 +110,16 @@ public class BubbleChat {
     		layoutParams.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
     		view.setBackgroundResource(R.drawable.chat_bubble_outgoing);
     	}
-    	
-    	if (previousID != -1) {
-    		layoutParams.addRule(RelativeLayout.BELOW, previousID);
-    	}
 
-    	view.setId(id);
-    	layoutParams.setMargins(0, LinphoneUtils.pixelsToDpi(context.getResources(), 10), 0, 0);
-    	view.setLayoutParams(layoutParams);	
+    	layoutParams.setMargins(10, 0, 10, 0);
+    	
+    	view.setId(id);	
+    	view.setLayoutParams(layoutParams);
     	
     	Spanned text = null;
     	if (message != null) {
 	    	if (context.getResources().getBoolean(R.bool.emoticons_in_messages)) {
-	    		text = getSmiledText(context, getTextWithHttpLinks(message), message);
+	    		text = getSmiledText(context, getTextWithHttpLinks(message));
 	    		//text = getTextWithHttpLinks(message);
 	    	} else {
 	    		text = getTextWithHttpLinks(message);
@@ -156,7 +161,7 @@ public class BubbleChat {
 	    			@Override
 	    			public void onClick(View v) {
 	    				Intent intent = new Intent(Intent.ACTION_VIEW);
-	    				intent.setDataAndType(Uri.parse("file://" + url), "image/*");
+	    				intent.setDataAndType(Uri.parse("file://" + imageUrl), "image/*");
 	    				context.startActivity(intent);
 	    			}
 	    		});
@@ -196,6 +201,8 @@ public class BubbleChat {
 	}
 	
 	public void updateStatusView(LinphoneChatMessage.State status) {
+		state = status;
+		
 		if (statusView == null) {
 			return;
 		}
@@ -207,6 +214,7 @@ public class BubbleChat {
 		} else {
 			statusView.setImageResource(R.drawable.chat_message_inprogress);
 		}
+		
 		view.invalidate();
 	}
 	
@@ -246,8 +254,9 @@ public class BubbleChat {
                 cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR));
     }
 	
-	public static Spannable getSmiledText(Context context, Spanned spanned, String text) {
+	public static Spannable getSmiledText(Context context, Spanned spanned) {
 		SpannableStringBuilder builder = new SpannableStringBuilder(spanned);
+		String text = spanned.toString();
 
 		for (Entry<String, Integer> entry : emoticons.entrySet()) {
 			String key = entry.getKey();
@@ -291,5 +300,33 @@ public class BubbleChat {
 		if (downloadOrShow != null) {
 			downloadOrShow.setText(buttonName);
 		}
+	}
+
+	public void updateUrl(String newFileUrl) {
+		imageUrl = newFileUrl;
+	}
+	
+	public String getTextMessage() {
+		return textMessage;
+	}
+	
+	public String getImageUrl() {
+		return imageUrl;
+	}
+
+	public State getStatus() {
+		return state;
+	}
+	
+	public LinphoneChatMessage getNativeMessageObject() {
+		return nativeMessage;
+	}
+	
+	public void setNativeMessageObject(LinphoneChatMessage message) {
+		nativeMessage = message;
+	}
+	
+	public int getId() {
+		return id;
 	}
 }

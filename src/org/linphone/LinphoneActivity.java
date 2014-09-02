@@ -33,7 +33,9 @@ import org.linphone.LinphoneSimpleListener.LinphoneOnRegistrationStateChangedLis
 import org.linphone.compatibility.Compatibility;
 import org.linphone.core.CallDirection;
 import org.linphone.core.LinphoneAddress;
+import org.linphone.core.LinphoneAuthInfo;
 import org.linphone.core.LinphoneCall;
+import org.linphone.core.LinphoneProxyConfig;
 import org.linphone.core.LinphoneCall.State;
 import org.linphone.core.LinphoneCallLog;
 import org.linphone.core.LinphoneCallLog.CallStatus;
@@ -43,13 +45,14 @@ import org.linphone.core.LinphoneCore.RegistrationState;
 import org.linphone.core.LinphoneCoreException;
 import org.linphone.core.LinphoneCoreFactory;
 import org.linphone.core.LinphoneFriend;
-import org.linphone.core.OnlineStatus;
 import org.linphone.mediastream.Log;
+import org.linphone.setup.RemoteProvisioningLoginActivity;
 import org.linphone.setup.SetupActivity;
 import org.linphone.ui.AddressText;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -92,7 +95,8 @@ public class LinphoneActivity extends FragmentActivity implements
 	public static final String PREF_FIRST_LAUNCH = "pref_first_launch";
 	private static final int SETTINGS_ACTIVITY = 123;
 	private static final int FIRST_LOGIN_ACTIVITY = 101;
-	private static final int callActivity = 19;
+	private static final int REMOTE_PROVISIONING_LOGIN_ACTIVITY = 102;
+	private static final int CALL_ACTIVITY = 19;
 
 	private static LinphoneActivity instance;
 
@@ -138,9 +142,14 @@ public class LinphoneActivity extends FragmentActivity implements
 			startActivity(getIntent().setClass(this, LinphoneLauncherActivity.class));
 			return;
 		}
-
+		
 		boolean useFirstLoginActivity = getResources().getBoolean(R.bool.display_account_wizard_at_first_start);
-		if (useFirstLoginActivity && LinphonePreferences.instance().isFirstLaunch()) {
+		if (LinphonePreferences.instance().isProvisioningLoginViewEnabled()) {
+			Intent wizard = new Intent();
+			wizard.setClass(this, RemoteProvisioningLoginActivity.class);
+			wizard.putExtra("Domain", LinphoneManager.getInstance().wizardLoginViewDomain);
+			startActivityForResult(wizard, REMOTE_PROVISIONING_LOGIN_ACTIVITY);
+		} else if (useFirstLoginActivity && LinphonePreferences.instance().isFirstLaunch()) {
 			if (LinphonePreferences.instance().getAccountCount() > 0) {
 				LinphonePreferences.instance().firstLaunchSuccessful();
 			} else {
@@ -228,7 +237,7 @@ public class LinphoneActivity extends FragmentActivity implements
 		return getResources().getBoolean(R.bool.isTablet);
 	}
 
-	private void hideStatusBar() {
+	public void hideStatusBar() {
 		if (isTablet()) {
 			return;
 		}
@@ -237,7 +246,7 @@ public class LinphoneActivity extends FragmentActivity implements
 		findViewById(R.id.fragmentContainer).setPadding(0, 0, 0, 0);
 	}
 
-	private void showStatusBar() {
+	public void showStatusBar() {
 		if (isTablet()) {
 			return;
 		}
@@ -283,8 +292,17 @@ public class LinphoneActivity extends FragmentActivity implements
 			newFragment = new HistoryDetailFragment();
 			break;
 		case CONTACTS:
-			newFragment = new ContactsFragment();
-			friendStatusListenerFragment = newFragment;
+			if (getResources().getBoolean(R.bool.use_android_native_contact_edit_interface)) {
+				Intent i = new Intent();
+			    i.setComponent(new ComponentName("com.android.contacts", "com.android.contacts.DialtactsContactsEntryActivity"));
+			    i.setAction("android.intent.action.MAIN");
+			    i.addCategory("android.intent.category.LAUNCHER");
+			    i.addCategory("android.intent.category.DEFAULT");
+			    startActivity(i);
+			} else {
+				newFragment = new ContactsFragment();
+				friendStatusListenerFragment = newFragment;
+			}
 			break;
 		case CONTACT:
 			newFragment = new ContactFragment();
@@ -344,13 +362,6 @@ public class LinphoneActivity extends FragmentActivity implements
 	}
 
 	private void changeFragment(Fragment newFragment, FragmentsAvailable newFragmentType, boolean withoutAnimation) {
-		if (getResources().getBoolean(R.bool.show_statusbar_only_on_dialer)) {
-			if (newFragmentType == FragmentsAvailable.DIALER) {
-				showStatusBar();
-			} else {
-				hideStatusBar();
-			}
-		}
 		if (statusFragment != null) {
 			statusFragment.closeStatusBar();
 		}
@@ -759,14 +770,24 @@ public class LinphoneActivity extends FragmentActivity implements
 		getChatStorage().updateMessageStatus(to, id, newState);
 	}
 
-	@Override
-	public void onRegistrationStateChanged(RegistrationState state) {
+	public void onRegistrationStateChanged(LinphoneProxyConfig proxy, RegistrationState state, String message) {
+		LinphoneCore lc = LinphoneManager.getLcIfManagerNotDestroyedOrNull();
 		if (statusFragment != null) {
-			LinphoneCore lc = LinphoneManager.getLcIfManagerNotDestroyedOrNull();
-			if (lc != null && lc.getDefaultProxyConfig() != null)
-				statusFragment.registrationStateChanged(lc.getDefaultProxyConfig().getState());
+			if (lc != null)
+				if(lc.getDefaultProxyConfig() == null)
+					statusFragment.registrationStateChanged(proxy.getState());
+				else 
+					statusFragment.registrationStateChanged(lc.getDefaultProxyConfig().getState());
 			else
 				statusFragment.registrationStateChanged(RegistrationState.RegistrationNone);
+		}
+		
+		if(state.equals(RegistrationState.RegistrationCleared)){ 
+			if(lc != null){
+				LinphoneAuthInfo authInfo = lc.findAuthInfo(proxy.getIdentity(), proxy.getRealm(), proxy.getDomain());
+				if(authInfo != null)
+					lc.removeAuthInfo(authInfo);
+			}
 		}
 	}
 
@@ -825,9 +846,9 @@ public class LinphoneActivity extends FragmentActivity implements
 			// Convert LinphoneCore message for internalization
 			if (message != null && message.equals("Call declined.")) { 
 				displayCustomToast(getString(R.string.error_call_declined), Toast.LENGTH_LONG);
-			} else if (message != null && message.equals("User not found.")) {
+			} else if (message != null && message.equals("Not Found")) {
 				displayCustomToast(getString(R.string.error_user_not_found), Toast.LENGTH_LONG);
-			} else if (message != null && message.equals("Incompatible media parameters.")) {
+			} else if (message != null && message.equals("Unsupported media type")) {
 				displayCustomToast(getString(R.string.error_incompatible_media), Toast.LENGTH_LONG);
 			}
 			resetClassicMenuLayoutAndGoBackToCallIfStillRunning();
@@ -867,9 +888,7 @@ public class LinphoneActivity extends FragmentActivity implements
 		AddressType address = new AddressText(this, null);
 		address.setDisplayedName(name);
 		address.setText(number);
-		if (LinphoneManager.getLc().getCallsNb() == 0) {
-			LinphoneManager.getInstance().newOutgoingCall(address);
-		}
+		LinphoneManager.getInstance().newOutgoingCall(address);
 	}
 
 	public void setAddressAndGoToDialer(String number) {
@@ -887,14 +906,14 @@ public class LinphoneActivity extends FragmentActivity implements
 		Intent intent = new Intent(this, InCallActivity.class);
 		intent.putExtra("VideoEnabled", true);
 		startOrientationSensor();
-		startActivityForResult(intent, callActivity);
+		startActivityForResult(intent, CALL_ACTIVITY);
 	}
 
 	public void startIncallActivity(LinphoneCall currentCall) {
 		Intent intent = new Intent(this, InCallActivity.class);
 		intent.putExtra("VideoEnabled", false);
 		startOrientationSensor();
-		startActivityForResult(intent, callActivity);
+		startActivityForResult(intent, CALL_ACTIVITY);
 	}
 
 	/**
@@ -973,12 +992,6 @@ public class LinphoneActivity extends FragmentActivity implements
 
 	public boolean isLinphoneContactsPrefered() {
 		return preferLinphoneContacts;
-	}
-
-	private void refreshStatus(OnlineStatus status) {
-		if (LinphoneManager.isInstanciated()) {
-			LinphoneManager.getLcIfManagerNotDestroyedOrNull().setPresenceInfo(0, "", status);
-		}
 	}
 
 	public void onNewSubscriptionRequestReceived(LinphoneFriend friend,
@@ -1081,13 +1094,20 @@ public class LinphoneActivity extends FragmentActivity implements
 	}
 	
 	public void removeContactFromLists(Contact contact) {
-		if (contactList.contains(contact)) {
-			contactList.remove(contact);
-			contactCursor = Compatibility.getContactsCursor(getContentResolver());
+		for (Contact c : contactList) {
+			if (c != null && c.getID().equals(contact.getID())) {
+				contactList.remove(c);
+				contactCursor = Compatibility.getContactsCursor(getContentResolver());
+				break;
+			}
 		}
-		if (sipContactList.contains(contact)) {
-			sipContactList.remove(contact);
-			sipContactCursor = Compatibility.getSIPContactsCursor(getContentResolver());
+		
+		for (Contact c : sipContactList) {
+			if (c != null && c.getID().equals(contact.getID())) {
+				sipContactList.remove(c);
+				sipContactCursor = Compatibility.getSIPContactsCursor(getContentResolver());
+				break;
+			}
 		}
 	}
 
@@ -1227,7 +1247,8 @@ public class LinphoneActivity extends FragmentActivity implements
 				changeCurrentFragment(newFragment, null, true);
 				selectMenu(newFragment);
 			}
-		} else if (requestCode == callActivity) {
+		} else if (resultCode == Activity.RESULT_FIRST_USER && requestCode == CALL_ACTIVITY) {
+			getIntent().putExtra("PreviousActivity", CALL_ACTIVITY);
 			boolean callTransfer = data == null ? false : data.getBooleanExtra("Transfer", false);
 			if (LinphoneManager.getLc().getCallsNb() > 0) {
 				initInCallMenuLayout(callTransfer);
@@ -1238,7 +1259,13 @@ public class LinphoneActivity extends FragmentActivity implements
 			super.onActivityResult(requestCode, resultCode, data);
 		}
 	}
-
+	
+	@Override
+	protected void onPause() {
+		getIntent().putExtra("PreviousActivity", 0);
+		super.onPause();
+	}
+	
 	@Override
 	protected void onResume() {
 		super.onResume();
@@ -1257,21 +1284,24 @@ public class LinphoneActivity extends FragmentActivity implements
 		
 		displayMissedCalls(LinphoneManager.getLc().getMissedCallsCount());
 
-		if (LinphoneManager.getLc().getCalls().length > 0) {
-			LinphoneCall call = LinphoneManager.getLc().getCalls()[0];
-			LinphoneCall.State callState = call.getState();
-			if (callState == State.IncomingReceived) {
-				startActivity(new Intent(this, IncomingCallActivity.class));
-			}
+		LinphoneManager.getInstance().changeStatusToOnline();
+
+		if(getIntent().getIntExtra("PreviousActivity", 0) != CALL_ACTIVITY){
+			if (LinphoneManager.getLc().getCalls().length > 0) {
+				LinphoneCall call = LinphoneManager.getLc().getCalls()[0];
+				LinphoneCall.State callState = call.getState();
+				if (callState == State.IncomingReceived) {
+					startActivity(new Intent(this, IncomingCallActivity.class));
+				} else {
+					
+						if (call.getCurrentParamsCopy().getVideoEnabled()) {
+							startVideoActivity(call);
+						} else {
+							startIncallActivity(call);
+						}
+					}
+				}
 		}
-
-		refreshStatus(OnlineStatus.Online);
-	}
-
-	@Override
-	protected void onPause() {		
-		super.onPause();
-		refreshStatus(OnlineStatus.Away);
 	}
 
 	@Override
@@ -1322,7 +1352,15 @@ public class LinphoneActivity extends FragmentActivity implements
 			}
 		} else {
 			if (dialerFragment != null) {
-				((DialerFragment) dialerFragment).newOutgoingCall(intent);
+				if (extras != null && extras.containsKey("SipUriOrNumber")) {
+					if (getResources().getBoolean(R.bool.automatically_start_intercepted_outgoing_gsm_call)) {
+						((DialerFragment) dialerFragment).newOutgoingCall(extras.getString("SipUriOrNumber"));
+					} else {
+						((DialerFragment) dialerFragment).displayTextInAddressBar(extras.getString("SipUriOrNumber"));
+					}
+				} else {
+					((DialerFragment) dialerFragment).newOutgoingCall(intent);
+				}
 			}
 			if (LinphoneManager.getLc().getCalls().length > 0) {
 				LinphoneCall calls[] = LinphoneManager.getLc().getCalls();
@@ -1363,20 +1401,7 @@ public class LinphoneActivity extends FragmentActivity implements
 					return true;
 				}
 			} else {
-				if (!isTablet()) {
-					int backStackEntryCount = getSupportFragmentManager().getBackStackEntryCount();
-					if (backStackEntryCount <= 1) {
-						showStatusBar();
-					}
-	
-					if (currentFragment == FragmentsAvailable.SETTINGS) {
-						showStatusBar();
-						updateAnimationsState();
-					} else if (currentFragment == FragmentsAvailable.CHATLIST) {
-						//Hack to ensure display the status bar on some devices
-						showStatusBar();
-					}
-				} else {
+				if (isTablet()) {
 					if (currentFragment == FragmentsAvailable.SETTINGS) {
 						updateAnimationsState();
 					}

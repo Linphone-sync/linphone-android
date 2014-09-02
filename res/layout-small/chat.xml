@@ -31,23 +31,24 @@
         
     </LinearLayout>
     
-    <org.linphone.ui.LinphoneScrollView 
-        android:id="@+id/chatScrollView"
-        android:paddingTop="5dp"
-        android:layout_weight="1"
-	    android:layout_width="match_parent"
-	    android:layout_height="0dip">
-    
-        <RelativeLayout
-	        android:id="@+id/messages"
-		    android:layout_width="match_parent"
-		    android:layout_height="wrap_content"
-		    android:paddingLeft="10dp"
-		    android:paddingRight="10dp">
-            
-        </RelativeLayout>
+    <ListView
+		android:id="@+id/chatMessageList"
+		android:layout_width="match_parent"
+		android:layout_height="0dp"
+		android:layout_weight="1"
+		android:divider="@android:color/transparent"
+		android:stackFromBottom="true"
+		android:transcriptMode="alwaysScroll"
+		android:cacheColorHint="@color/transparent"
+		android:dividerHeight="1dp" />
         
-    </org.linphone.ui.LinphoneScrollView>
+    <TextView 
+        android:id="@+id/remoteComposing"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+    	android:textColor="@color/text_contrast"
+        android:text="@string/remote_composing" />
     
     <RelativeLayout 
         android:id="@+id/messageLayout"

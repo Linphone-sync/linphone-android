@@ -225,7 +225,8 @@ public class StatusFragment extends Fragment {
 	
 	private int getStatusIconResource(LinphoneCore.RegistrationState state, boolean isDefaultAccount) {
 		try {
-			boolean defaultAccountConnected = (isDefaultAccount && LinphoneManager.getLcIfManagerNotDestroyedOrNull().getDefaultProxyConfig().isRegistered()) || !isDefaultAccount;
+			LinphoneCore lc = LinphoneManager.getLcIfManagerNotDestroyedOrNull();
+			boolean defaultAccountConnected = (isDefaultAccount && lc != null && lc.getDefaultProxyConfig() != null && lc.getDefaultProxyConfig().isRegistered()) || !isDefaultAccount;
 			if (state == RegistrationState.RegistrationOk && defaultAccountConnected) {
 				return R.drawable.led_connected;
 			} else if (state == RegistrationState.RegistrationProgress) {
@@ -439,7 +440,10 @@ public class StatusFragment extends Fragment {
 				final TextView dl = (TextView) view.findViewById(R.id.downloadBandwith);
 				final TextView ul = (TextView) view.findViewById(R.id.uploadBandwith);
 				final TextView ice = (TextView) view.findViewById(R.id.ice);
-				if (codec == null || dl == null || ul == null || ice == null) {
+				final TextView videoResolution = (TextView) view.findViewById(R.id.video_resolution);
+				final View videoResolutionLayout = view.findViewById(R.id.video_resolution_layout);
+				
+				if (codec == null || dl == null || ul == null || ice == null || videoResolution == null || videoResolutionLayout == null) {
 					mTimer.cancel();
 					return;
 				}
@@ -462,6 +466,9 @@ public class StatusFragment extends Fragment {
 									dl.setText(String.valueOf((int) videoStats.getDownloadBandwidth()) + " / " + (int) audioStats.getDownloadBandwidth() + " kbits/s");
 									ul.setText(String.valueOf((int) videoStats.getUploadBandwidth()) +  " / " + (int) audioStats.getUploadBandwidth() + " kbits/s");
 									ice.setText(videoStats.getIceState().toString());
+									
+									videoResolutionLayout.setVisibility(View.VISIBLE);
+									videoResolution.setText("↑ " + params.getSentVideoSize().toDisplayableString() + " / ↓ " + params.getReceivedVideoSize().toDisplayableString());
 								}
 							} else {
 								final LinphoneCallStats audioStats = call.getAudioStats();
@@ -474,6 +481,8 @@ public class StatusFragment extends Fragment {
 									dl.setText(String.valueOf((int) audioStats.getDownloadBandwidth()) + " kbits/s");
 									ul.setText(String.valueOf((int) audioStats.getUploadBandwidth()) + " kbits/s");
 									ice.setText(audioStats.getIceState().toString());
+									
+									videoResolutionLayout.setVisibility(View.GONE);
 								}
 							}
 						}
@@ -481,7 +490,7 @@ public class StatusFragment extends Fragment {
 				});
 			}
 		};
-		mTimer.scheduleAtFixedRate(mTask, 0, 1500);
+		mTimer.scheduleAtFixedRate(mTask, 0, 1000);
 	}
 	
 	class AccountsListAdapter extends BaseAdapter {

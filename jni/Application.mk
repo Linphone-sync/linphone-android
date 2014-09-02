@@ -1,5 +1,5 @@
 APP_PROJECT_PATH := $(call my-dir)/../
-APP_STL := stlport_static
+NDK_TOOLCHAIN_VERSION := 4.8
 
 ifeq ($(BUILD_MEDIASTREAMER2_SDK),)
 BUILD_MEDIASTREAMER2_SDK=0
@@ -26,6 +26,10 @@ endif
 
 ifeq ($(BUILD_X264),)
 BUILD_X264=0
+endif
+
+ifeq ($(BUILD_OPENH264),)
+BUILD_OPENH264=0
 endif
 
 ifeq ($(BUILD_G729),)
@@ -55,7 +59,16 @@ endif
 ifeq ($(BUILD_VIDEO),1)
 APP_MODULES += libavutil-linphone libavcodec-linphone libswscale-linphone
 APP_MODULES += libvpx
+ifeq ($(BUILD_X264),1)
+APP_MODULES +=libx264 libmsx264
 endif
+ifeq ($(BUILD_OPENH264),1)
+APP_MODULES += libopenh264 libmsopenh264
+endif
+ifeq ($(BUILD_MATROSKA), 1)
+APP_MODULES += libebml2 libmatroska2
+endif
+endif # BUILD_VIDEO
 
 _BUILD_AMR=0
 ifneq ($(BUILD_AMRNB), 0)
@@ -74,10 +87,6 @@ ifneq ($(BUILD_AMRWB), 0)
 APP_MODULES += libvoamrwbenc
 endif
 
-ifeq ($(BUILD_X264),1)
-APP_MODULES +=libx264 libmsx264
-endif
-
 ifeq ($(BUILD_SILK),1)
 APP_MODULES +=libmssilk
 endif
@@ -91,13 +100,17 @@ APP_MODULES += libopus
 endif
 
 ifneq ($(BUILD_WEBRTC_AECM), 0)
-APP_MODULES += libwebrtc_system_wrappers libwebrtc_spl libwebrtc_apm_utility libwebrtc_aecm
+APP_MODULES += libwebrtc_system_wrappers libwebrtc_spl libwebrtc_apm_utility libwebrtc_aecm libmswebrtc
+ifneq (,$(findstring armeabi,$(TARGET_ARCH_ABI)))
 APP_MODULES += libwebrtc_spl_neon libwebrtc_aecm_neon
+endif
 endif
 
 ifeq ($(BUILD_WEBRTC_ISAC), 1)
-APP_MODULES += libwebrtc_spl libwebrtc_isacfix libmsisac
+APP_MODULES += libwebrtc_spl libwebrtc_isacfix libmswebrtc
+ifneq (,$(findstring armeabi,$(TARGET_ARCH_ABI)))
 APP_MODULES += libwebrtc_spl_neon libwebrtc_isacfix_neon
+endif
 endif
 
 ifeq ($(BUILD_MEDIASTREAMER2_SDK), 0)
@@ -110,9 +123,8 @@ APP_MODULES += libtunnelclient
 endif
 endif
 
-ifeq ($(BUILD_GPLV3_ZRTP), 1)
-APP_MODULES += libcrypto-linphone libssl-linphone
-APP_MODULES      += libzrtpcpp
+ifeq ($(BUILD_ZRTP), 1)
+APP_MODULES      += libbzrtp
 endif
 
 APP_MODULES      +=libmsilbc

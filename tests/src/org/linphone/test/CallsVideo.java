@@ -27,18 +27,26 @@ public class CallsVideo extends SampleTest {
 	@MediumTest
 	@LargeTest
 	public void testAInit() {
-		LinphoneTestManager.getLc().enableVideo(true, true); // Just in case
-		
-		//Disable video
+		//Enable video
 		goToSettings();
 
 		selectItemInListOnUIThread(3);
 		solo.clickOnText(aContext.getString(org.linphone.R.string.pref_video_enable_title));
 		solo.sleep(500);
 		
+		// enable auto accept and auto share video
+		solo.clickOnText(aContext.getString(org.linphone.R.string.pref_video));
+		solo.sleep(500);
+		solo.clickOnText(aContext.getString(org.linphone.R.string.pref_video_initiate_call_with_video_title));
+		solo.clickOnText(aContext.getString(org.linphone.R.string.pref_video_automatically_accept_video_title));
+		solo.sleep(500);
+		solo.goBack();
+		
 		solo.goBack();
 		solo.sleep(1000);
 		Assert.assertTrue(LinphoneManager.getLc().isVideoEnabled());
+		Assert.assertTrue(LinphoneManager.getLc().getVideoAutoAcceptPolicy());
+		Assert.assertTrue(LinphoneManager.getLc().getVideoAutoInitiatePolicy());
 	}
 	
 	@SmallTest
@@ -46,6 +54,7 @@ public class CallsVideo extends SampleTest {
 	@LargeTest
 	public void testBOutgoingCallWithDefaultConfig() {
 		LinphoneTestManager.getInstance().declineCall = false; // Just in case
+		LinphoneTestManager.getLc().enableVideo(true, true);
 		
 		solo.enterText(0, iContext.getString(org.linphone.test.R.string.account_test_calls_login) + "@" + iContext.getString(org.linphone.test.R.string.account_test_calls_domain));
 		solo.clickOnView(solo.getView(org.linphone.R.id.Call));
@@ -252,8 +261,9 @@ public class CallsVideo extends SampleTest {
 		assertCallIsCorrectlyRunning();
 		
 		solo.clickOnView(solo.getView(org.linphone.R.id.pause));
-		LinphoneCall.State state = LinphoneManager.getLc().getCalls()[0].getState();
 		solo.sleep(1000);
+		LinphoneCall.State state = LinphoneManager.getLc().getCalls()[0].getState();
+		
 		
 		Assert.assertTrue(LinphoneCall.State.Paused == state || LinphoneCall.State.Pausing == state);
 		solo.clickOnView(solo.getView(org.linphone.R.id.pause));
@@ -302,7 +312,8 @@ public class CallsVideo extends SampleTest {
 		
 		Assert.assertTrue(solo.getView(org.linphone.R.id.video).isEnabled());
 		solo.clickOnView(solo.getView(org.linphone.R.id.video));
-		Assert.assertFalse(LinphoneManager.getLc().getCurrentCall().cameraEnabled());
+		solo.sleep(1000);
+		Assert.assertFalse(LinphoneManager.getLc().getCurrentCall().getCurrentParamsCopy().getVideoEnabled());
 		
 		solo.clickOnView(solo.getView(org.linphone.R.id.hangUp));
 		solo.waitForActivity("LinphoneActivity", 5000);

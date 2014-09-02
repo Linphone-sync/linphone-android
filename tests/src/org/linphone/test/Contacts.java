@@ -2,11 +2,14 @@ package org.linphone.test;
 
 import junit.framework.Assert;
 
+import org.linphone.ContactsFragment;
 import org.linphone.LinphoneActivity;
 
 import android.test.suitebuilder.annotation.LargeTest;
 import android.test.suitebuilder.annotation.MediumTest;
 import android.test.suitebuilder.annotation.SmallTest;
+import android.view.View;
+import android.widget.ScrollView;
 
 /**
  * @author Sylvain Berfini
@@ -47,6 +50,10 @@ public class Contacts extends SampleTest {
 		solo.enterText(2, iContext.getString(org.linphone.test.R.string.contact_number));
 		solo.clickOnText(aContext.getString(org.linphone.R.string.button_ok));
 		
+		if (ContactsFragment.instance() != null) {
+			ContactsFragment.instance().invalidate();
+			solo.sleep(1000);
+		}
 		Assert.assertTrue(solo.searchText(iContext.getString(org.linphone.test.R.string.contact_name)));
 	}
 
@@ -103,9 +110,19 @@ public class Contacts extends SampleTest {
 		goToContacts();
 		
 		solo.clickOnText(iContext.getString(org.linphone.test.R.string.contact_name));
-		solo.clickOnText(aContext.getString(org.linphone.R.string.button_edit));
-		solo.clickOnText(aContext.getString(org.linphone.R.string.delete_contact));
 		
+		solo.clickOnText(aContext.getString(org.linphone.R.string.button_edit));
+		
+		// Scroll down a bit on some small screens to see the delete button
+		final ScrollView scrollView = (ScrollView)solo.getView(org.linphone.R.id.controlsScrollView);
+		scrollView.getHandler().post(new Runnable() {
+			@Override
+			public void run() {
+				scrollView.fullScroll(View.FOCUS_DOWN);
+			}
+		});
+		solo.sleep(500);
+		solo.clickOnText(aContext.getString(org.linphone.R.string.delete_contact));
 		Assert.assertFalse(solo.searchText(iContext.getString(org.linphone.test.R.string.contact_name)));
 	}
 	

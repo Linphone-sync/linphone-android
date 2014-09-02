@@ -8,6 +8,7 @@ import org.linphone.LinphoneManager;
 import org.linphone.LinphoneManager.LinphoneConfigException;
 import org.linphone.LinphoneService;
 import org.linphone.core.LinphoneAddress;
+import org.linphone.core.LinphoneAddress.TransportType;
 import org.linphone.core.LinphoneAuthInfo;
 import org.linphone.core.LinphoneCall;
 import org.linphone.core.LinphoneCall.State;
@@ -20,6 +21,7 @@ import org.linphone.core.LinphoneCore.EcCalibratorStatus;
 import org.linphone.core.LinphoneCore.GlobalState;
 import org.linphone.core.LinphoneCore.MediaEncryption;
 import org.linphone.core.LinphoneCore.RegistrationState;
+import org.linphone.core.LinphoneCore.RemoteProvisioningState;
 import org.linphone.core.LinphoneCore.Transports;
 import org.linphone.core.LinphoneCoreException;
 import org.linphone.core.LinphoneCoreFactory;
@@ -32,8 +34,6 @@ import org.linphone.core.PayloadType;
 import org.linphone.core.PublishState;
 import org.linphone.core.SubscriptionState;
 import org.linphone.mediastream.Log;
-import org.linphone.mediastream.Version;
-import org.linphone.mediastream.video.capture.AndroidVideoApi5JniWrapper;
 import org.linphone.mediastream.video.capture.hwconf.AndroidCameraConfiguration;
 import org.linphone.mediastream.video.capture.hwconf.AndroidCameraConfiguration.AndroidCamera;
 
@@ -44,20 +44,22 @@ import android.telephony.TelephonyManager;
 public class LinphoneTestManager implements LinphoneCoreListener {
 
 	private static LinphoneTestManager instance;
-	private Context mAContext, mIContext;
+	private Context mIContext;
 	private LinphoneCore mLc1, mLc2;
 	
 	public String lastMessageReceived;
 	public boolean isDTMFReceived = false;
 	public boolean autoAnswer = true;
 	public boolean declineCall = false;
+	
+	private final String linphoneRootCaFile;
 
 	private Timer mTimer1 = new Timer("Linphone scheduler 1");
 	private Timer mTimer2 = new Timer("Linphone scheduler 2");
 	
 	private LinphoneTestManager(Context ac, Context ic) {
 		mIContext = ic;
-		mAContext = ac;
+		linphoneRootCaFile = ac.getFilesDir().getAbsolutePath() + "/rootca.pem";
 	}
 	
 	public static LinphoneTestManager createAndStart(Context ac, Context ic, int id) {
@@ -69,8 +71,6 @@ public class LinphoneTestManager implements LinphoneCoreListener {
 		boolean gsmIdle = tm.getCallState() == TelephonyManager.CALL_STATE_IDLE;
 		setGsmIdle(gsmIdle, id);
 		
-		if (Version.isVideoCapable())
-			AndroidVideoApi5JniWrapper.setAndroidSdkVersion(Version.sdk());
 		return instance;
 	}
 	
@@ -78,8 +78,7 @@ public class LinphoneTestManager implements LinphoneCoreListener {
 		try {
 			LinphoneCoreFactory.instance().setDebugMode(true, "LinphoneTester");
 			
-			String basePath = mAContext.getFilesDir().getAbsolutePath();
-			final LinphoneCore mLc = LinphoneCoreFactory.instance().createLinphoneCore(this, basePath + "/.linphonerc" + id, null, null);
+			final LinphoneCore mLc = LinphoneCoreFactory.instance().createLinphoneCore(this, c);
 			if (id == 2) {
 				mLc2 = mLc;
 			} else {
@@ -99,10 +98,16 @@ public class LinphoneTestManager implements LinphoneCoreListener {
 
 			mLc.enableIpv6(false);
 			mLc.setRing(null);
+			mLc.setRootCA(linphoneRootCaFile);
 
 			int availableCores = Runtime.getRuntime().availableProcessors();
 			Log.w("MediaStreamer : " + availableCores + " cores detected and configured");
 			mLc.setCpuCount(availableCores);
+			
+			Transports t = mLc.getSignalingTransportPorts();
+			t.udp = -1;
+			t.tcp = -1;
+			mLc.setSignalingTransportPorts(t);
 			
 			try {
 				initFromConf(mLc);
@@ -143,19 +148,11 @@ public class LinphoneTestManager implements LinphoneCoreListener {
 	
 	public void initFromConf(LinphoneCore mLc) throws LinphoneConfigException, LinphoneCoreException {
 		LinphoneCoreFactory.instance().setDebugMode(true, "LinphoneTester");
-
-		// Use TCP with Random port
-		Transports transports = getLc().getSignalingTransportPorts();
-		transports.tcp = -1;
-		transports.udp = 0;
-		transports.tls = 0;
-		mLc.setSignalingTransportPorts(transports);
 		
 		initAccounts(mLc);
 
 		mLc.setVideoPolicy(true, true);
-		boolean isVideoEnabled = true;
-		mLc.enableVideo(isVideoEnabled, isVideoEnabled);
+		mLc.enableVideo(true, true);
 		
 		mLc.setUseRfc2833ForDtmfs(false);
 		mLc.setUseSipInfoForDtmfs(true);
@@ -178,7 +175,7 @@ public class LinphoneTestManager implements LinphoneCoreListener {
 	}
 
 	void initMediaEncryption(LinphoneCore mLc){
-		MediaEncryption me=MediaEncryption.None;
+		MediaEncryption me = MediaEncryption.None;
 		mLc.setMediaEncryption(me);
 	}
 	
@@ -196,11 +193,14 @@ public class LinphoneTestManager implements LinphoneCoreListener {
 			password = mIContext.getString(org.linphone.test.R.string.conference_account_password);
 			domain = mIContext.getString(org.linphone.test.R.string.conference_account_domain);
 		}
+		
 		LinphoneAuthInfo lAuthInfo =  LinphoneCoreFactory.instance().createAuthInfo(username, password, null, domain);
 		mLc.addAuthInfo(lAuthInfo);
 		String identity = "sip:" + username +"@" + domain;
 		String proxy = "sip:" + domain;
-		LinphoneProxyConfig proxycon = LinphoneCoreFactory.instance().createProxyConfig(identity, proxy, null, true);
+		LinphoneAddress proxyAddr = LinphoneCoreFactory.instance().createLinphoneAddress(proxy);
+		proxyAddr.setTransport(TransportType.LinphoneTransportTls);
+		LinphoneProxyConfig proxycon = mLc.createProxyConfig(identity, proxyAddr.asStringUriOnly(), proxyAddr.asStringUriOnly(), true);
 		mLc.addProxyConfig(proxycon);
 		mLc.setDefaultProxyConfig(proxycon);
 		
@@ -209,7 +209,7 @@ public class LinphoneTestManager implements LinphoneCoreListener {
 			//escape +
 			lDefaultProxyConfig.setDialEscapePlus(false);
 		} else if (LinphoneService.isReady()) {
-			LinphoneService.instance().onRegistrationStateChanged(RegistrationState.RegistrationNone, null);
+			LinphoneService.instance().onRegistrationStateChanged(lDefaultProxyConfig, RegistrationState.RegistrationNone, null);
 		}
 	}
 
@@ -274,12 +274,6 @@ public class LinphoneTestManager implements LinphoneCoreListener {
 	public static synchronized void destroy() {
 		if (instance == null) return;
 		instance.doDestroy();
-	}
-
-	@Override
-	public void authInfoRequested(LinphoneCore lc, String realm, String username) {
-		// TODO Auto-generated method stub
-		
 	}
 
 	@Override
@@ -431,6 +425,24 @@ public class LinphoneTestManager implements LinphoneCoreListener {
 	@Override
 	public void publishStateChanged(LinphoneCore lc, LinphoneEvent ev,
 			PublishState state) {
+		// TODO Auto-generated method stub
+		
+	}
+	
+	@Override
+	public void isComposingReceived(LinphoneCore lc, LinphoneChatRoom cr) {
+		// TODO Auto-generated method stub
+	}
+
+	@Override
+	public void configuringStatus(LinphoneCore lc,
+			RemoteProvisioningState state, String message) {
+		// TODO Auto-generated method stub
+	}
+
+	@Override
+	public void authInfoRequested(LinphoneCore lc, String realm,
+			String username, String Domain) {
 		// TODO Auto-generated method stub
 		
 	}

@@ -21,9 +21,6 @@ package org.linphone;
 import static android.media.AudioManager.MODE_RINGTONE;
 import static android.media.AudioManager.STREAM_RING;
 import static android.media.AudioManager.STREAM_VOICE_CALL;
-import static org.linphone.core.LinphoneCall.State.CallEnd;
-import static org.linphone.core.LinphoneCall.State.Error;
-import static org.linphone.core.LinphoneCall.State.IncomingReceived;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -40,8 +37,10 @@ import java.util.TimerTask;
 import org.linphone.LinphoneSimpleListener.ConnectivityChangedListener;
 import org.linphone.LinphoneSimpleListener.LinphoneOnAudioChangedListener;
 import org.linphone.LinphoneSimpleListener.LinphoneOnAudioChangedListener.AudioState;
+import org.linphone.LinphoneSimpleListener.LinphoneOnComposingReceivedListener;
 import org.linphone.LinphoneSimpleListener.LinphoneOnDTMFReceivedListener;
 import org.linphone.LinphoneSimpleListener.LinphoneOnMessageReceivedListener;
+import org.linphone.LinphoneSimpleListener.LinphoneOnRemoteProvisioningListener;
 import org.linphone.LinphoneSimpleListener.LinphoneServiceListener;
 import org.linphone.compatibility.Compatibility;
 import org.linphone.core.CallDirection;
@@ -57,30 +56,30 @@ import org.linphone.core.LinphoneCore;
 import org.linphone.core.LinphoneCore.EcCalibratorStatus;
 import org.linphone.core.LinphoneCore.GlobalState;
 import org.linphone.core.LinphoneCore.RegistrationState;
+import org.linphone.core.LinphoneCore.RemoteProvisioningState;
 import org.linphone.core.LinphoneCoreException;
 import org.linphone.core.LinphoneCoreFactory;
+import org.linphone.core.LinphoneCoreFactoryImpl;
 import org.linphone.core.LinphoneCoreListener;
 import org.linphone.core.LinphoneEvent;
 import org.linphone.core.LinphoneFriend;
 import org.linphone.core.LinphoneInfoMessage;
 import org.linphone.core.LinphoneProxyConfig;
 import org.linphone.core.PayloadType;
+import org.linphone.core.PresenceActivityType;
+import org.linphone.core.PresenceModel;
 import org.linphone.core.PublishState;
 import org.linphone.core.SubscriptionState;
 import org.linphone.mediastream.Log;
 import org.linphone.mediastream.Version;
-import org.linphone.mediastream.video.capture.AndroidVideoApi5JniWrapper;
 import org.linphone.mediastream.video.capture.hwconf.AndroidCameraConfiguration;
 import org.linphone.mediastream.video.capture.hwconf.AndroidCameraConfiguration.AndroidCamera;
 import org.linphone.mediastream.video.capture.hwconf.Hacks;
+import org.linphone.setup.RemoteProvisioningActivity;
 
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.Activity;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothHeadset;
-import android.bluetooth.BluetoothProfile;
 import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -98,6 +97,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
 import android.os.Vibrator;
@@ -111,17 +111,17 @@ import android.view.WindowManager;
 import android.widget.Toast;
 
 /**
- * 
+ *
  * Manager of the low level LibLinphone stuff.<br />
  * Including:<ul>
  * <li>Starting C liblinphone</li>
  * <li>Reacting to C liblinphone state changes</li>
  * <li>Calling Linphone android service listener methods</li>
  * <li>Interacting from Android GUI/service with low level SIP stuff/</li>
- * </ul> 
- * 
+ * </ul>
+ *
  * Add Service Listener to react to Linphone state changes.
- * 
+ *
  * @author Guillaume Beraudo
  *
  */
@@ -138,18 +138,12 @@ public class LinphoneManager implements LinphoneCoreListener {
 	private String basePath;
 	private static boolean sExited;
 	private boolean mAudioFocused;
-	private boolean isNetworkReachable;
+	private int mLastNetworkType=-1;
 	private ConnectivityManager mConnectivityManager;
-
+	private Handler mHandler = new Handler();
 	private WakeLock mIncallWakeLock;
-	
-	private BluetoothAdapter mBluetoothAdapter;
-	private BluetoothHeadset mBluetoothHeadset;
-	private BluetoothProfile.ServiceListener mProfileListener;
-	private BroadcastReceiver bluetoothReiceiver = new BluetoothManager();
-	public boolean isBluetoothScoConnected;
-	public boolean isUsingBluetoothAudioRoute;
-	private boolean mBluetoothStarted;
+
+	public String wizardLoginViewDomain = null;
 
 	private static List<LinphoneSimpleListener> simpleListeners = new ArrayList<LinphoneSimpleListener>();
 	public static void addListener(LinphoneSimpleListener listener) {
@@ -170,10 +164,11 @@ public class LinphoneManager implements LinphoneCoreListener {
 		mLinphoneFactoryConfigFile = basePath + "/linphonerc";
 		mLinphoneConfigFile = basePath + "/.linphonerc";
 		mLinphoneRootCaFile = basePath + "/rootca.pem";
-		mRingSoundFile = basePath + "/oldphone_mono.wav"; 
+		mRingSoundFile = basePath + "/oldphone_mono.wav";
 		mRingbackSoundFile = basePath + "/ringback.wav";
 		mPauseSoundFile = basePath + "/toy_mono.wav";
 		mChatDatabaseFile = basePath + "/linphone-history.db";
+		mErrorToneFile = basePath + "/error.wav";
 
 		mPrefs = LinphonePreferences.instance();
 		mAudioManager = ((AudioManager) c.getSystemService(Context.AUDIO_SERVICE));
@@ -190,38 +185,34 @@ public class LinphoneManager implements LinphoneCoreListener {
 	private final String mLinphoneFactoryConfigFile;
 	private final String mLinphoneRootCaFile;
 	public final String mLinphoneConfigFile;
-	private final String mRingSoundFile; 
+	private final String mRingSoundFile;
 	private final String mRingbackSoundFile;
 	private final String mPauseSoundFile;
 	private final String mChatDatabaseFile;
+	private final String mErrorToneFile;
 
 	private Timer mTimer;
 
 	private  BroadcastReceiver mKeepAliveReceiver = new KeepAliveReceiver();
 
 	private void routeAudioToSpeakerHelper(boolean speakerOn) {
-		isUsingBluetoothAudioRoute = false;
-		if (mAudioManager != null && mBluetoothStarted) {
-			//Compatibility.setAudioManagerInCallMode(mAudioManager);
-			mAudioManager.stopBluetoothSco();
-			mAudioManager.setBluetoothScoOn(false);
-			mBluetoothStarted = false;
-		}
-		
-		if (!speakerOn) {
-			mLc.enableSpeaker(false);
-		} else {
-			mLc.enableSpeaker(true);
-		}
-		
+		Log.w("Routing audio to " + (speakerOn ? "speaker" : "earpiece") + ", disabling bluetooth audio route");
+		BluetoothManager.getInstance().disableBluetoothSCO();
+
+		mLc.enableSpeaker(speakerOn);
+		audioStateChanged(speakerOn ? AudioState.SPEAKER : AudioState.EARPIECE);
+	}
+
+	public void audioStateChanged(AudioState state) {
 		for (LinphoneOnAudioChangedListener listener : getSimpleListeners(LinphoneOnAudioChangedListener.class)) {
-			listener.onAudioStateChanged(speakerOn ? AudioState.SPEAKER : AudioState.EARPIECE);
+			listener.onAudioStateChanged(state);
 		}
 	}
+
 	public void routeAudioToSpeaker() {
 		routeAudioToSpeakerHelper(true);
 	}
-	
+
 	public String getUserAgent() throws NameNotFoundException {
 		StringBuilder userAgent = new StringBuilder();
 		userAgent.append("LinphoneAndroid/" + mServiceContext.getPackageManager().getPackageInfo(mServiceContext.getPackageName(),0).versionCode);
@@ -232,122 +223,55 @@ public class LinphoneManager implements LinphoneCoreListener {
 		return userAgent.toString();
 	}
 
-	/**
-	 * 
-	 */
 	public void routeAudioToReceiver() {
 		routeAudioToSpeakerHelper(false);
 	}
-	
-	@TargetApi(Build.VERSION_CODES.HONEYCOMB)
-	@SuppressWarnings("deprecation")
-	public void startBluetooth() {
-		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-		if (mBluetoothAdapter.isEnabled()) {
-			if (Version.sdkAboveOrEqual(Version.API11_HONEYCOMB_30)) {
-				mProfileListener = new BluetoothProfile.ServiceListener() {
-					@TargetApi(Build.VERSION_CODES.HONEYCOMB)
-					public void onServiceConnected(int profile, BluetoothProfile proxy) {
-					    if (profile == BluetoothProfile.HEADSET) {
-					        mBluetoothHeadset = (BluetoothHeadset) proxy;
-			        		isBluetoothScoConnected = true;
-					        Log.d("Bluetooth headset connected");
-					    }
-					}
-					@TargetApi(Build.VERSION_CODES.HONEYCOMB)
-					public void onServiceDisconnected(int profile) {
-					    if (profile == BluetoothProfile.HEADSET) {
-					        mBluetoothHeadset = null;
-			        		isBluetoothScoConnected = false;
-					        Log.d("Bluetooth headset disconnected");
-					        routeAudioToReceiver();
-					    }
-					}
-				};
-				mBluetoothAdapter.getProfileProxy(mServiceContext, mProfileListener, BluetoothProfile.HEADSET);
-			} else {
-				try {
-					mServiceContext.unregisterReceiver(bluetoothReiceiver);
-				} catch (Exception e) {}
-				
-				Intent currentValue = mServiceContext.registerReceiver(bluetoothReiceiver, new IntentFilter(AudioManager.ACTION_SCO_AUDIO_STATE_CHANGED));
-				int state = currentValue == null ? 0 : currentValue.getIntExtra(AudioManager.EXTRA_SCO_AUDIO_STATE, 0);
-	        	if (state == AudioManager.SCO_AUDIO_STATE_CONNECTED) {
-	        		isBluetoothScoConnected = true;
-	        	}
-			}
-		} else {
-    		isBluetoothScoConnected = false;
-			scoDisconnected();
-			routeAudioToReceiver();
-		}
-	}
-	
-	@TargetApi(Build.VERSION_CODES.HONEYCOMB)
-	public boolean routeAudioToBluetooth() {
-		BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-		if (bluetoothAdapter.isEnabled() && mAudioManager.isBluetoothScoAvailableOffCall()) {
-			mAudioManager.setBluetoothScoOn(true);	
-			mAudioManager.startBluetoothSco();
-			mBluetoothStarted=true;
-			
-			if (Version.sdkAboveOrEqual(Version.API11_HONEYCOMB_30)) {
-				isUsingBluetoothAudioRoute = false;
-				if (mBluetoothHeadset != null) {
-					List<BluetoothDevice> devices = mBluetoothHeadset.getConnectedDevices();                        
-					for (final BluetoothDevice dev : devices) {           
-						isUsingBluetoothAudioRoute |= mBluetoothHeadset.getConnectionState(dev) == BluetoothHeadset.STATE_CONNECTED;
-					}
-				}
-				
-				if (!isUsingBluetoothAudioRoute) {
-					Log.d("No bluetooth device available");	
-					scoDisconnected();
-				} else {
-					//Why is this for:
-					//mAudioManager.setMode(AudioManager.MODE_IN_CALL);
-					for (LinphoneOnAudioChangedListener listener : getSimpleListeners(LinphoneOnAudioChangedListener.class)) {
-						listener.onAudioStateChanged(AudioState.SPEAKER);
-					}
-				}
-			}
-			return isUsingBluetoothAudioRoute;
-		}
-		
-		return false;
-	}
-	
-	public void scoConnected() {
-		Log.i("Bluetooth sco connected!");
-		isBluetoothScoConnected = true;
-	}
-	
-	public void scoDisconnected() {
-		Log.w("Bluetooth sco disconnected!");
-		isUsingBluetoothAudioRoute = false;
-		isBluetoothScoConnected = false;
-		if (mAudioManager != null) {
-			//why is this for ?
-			//mAudioManager.setMode(AudioManager.MODE_NORMAL);
-			mAudioManager.stopBluetoothSco();
-			mAudioManager.setBluetoothScoOn(false);
-		}
-	}
 
-	public synchronized static final LinphoneManager createAndStart(
-			Context c, LinphoneServiceListener listener) {
+	public synchronized static final LinphoneManager createAndStart(Context c, LinphoneServiceListener listener) {
 		if (instance != null)
 			throw new RuntimeException("Linphone Manager is already initialized");
-		
+
 		instance = new LinphoneManager(c, listener);
 		instance.startLibLinphone(c);
 		TelephonyManager tm = (TelephonyManager) c.getSystemService(Context.TELEPHONY_SERVICE);
 		boolean gsmIdle = tm.getCallState() == TelephonyManager.CALL_STATE_IDLE;
 		setGsmIdle(gsmIdle);
-		
-		if (Version.isVideoCapable() && getLc().isVideoSupported())
-			AndroidVideoApi5JniWrapper.setAndroidSdkVersion(Version.sdk());
+
 		return instance;
+	}
+
+	private boolean isPresenceModelActivitySet() {
+		if (isInstanciated() && getLcIfManagerNotDestroyedOrNull() != null) {
+			return getLc().getPresenceModel() != null || getLc().getPresenceModel().getActivity() != null;
+		}
+		return false;
+	}
+
+	public void changeStatusToOnline() {
+		if (isInstanciated() && getLcIfManagerNotDestroyedOrNull() != null && isPresenceModelActivitySet() && getLc().getPresenceModel().getActivity().getType() != PresenceActivityType.Online) {
+			getLc().getPresenceModel().getActivity().setType(PresenceActivityType.Online);
+		} else if (isInstanciated() && getLcIfManagerNotDestroyedOrNull() != null && !isPresenceModelActivitySet()) {
+			PresenceModel model = LinphoneCoreFactoryImpl.instance().createPresenceModel(PresenceActivityType.Online, null);
+			getLc().setPresenceModel(model);
+		}
+	}
+
+	public void changeStatusToOnThePhone() {
+		if (isInstanciated() && isPresenceModelActivitySet() && getLc().getPresenceModel().getActivity().getType() != PresenceActivityType.OnThePhone) {
+			getLc().getPresenceModel().getActivity().setType(PresenceActivityType.OnThePhone);
+		} else if (isInstanciated() && !isPresenceModelActivitySet()) {
+			PresenceModel model = LinphoneCoreFactoryImpl.instance().createPresenceModel(PresenceActivityType.OnThePhone, null);
+			getLc().setPresenceModel(model);
+		}
+	}
+
+	public void changeStatusToOffline() {
+		if (isInstanciated() && isPresenceModelActivitySet() && getLc().getPresenceModel().getActivity().getType() != PresenceActivityType.Offline) {
+			getLc().getPresenceModel().getActivity().setType(PresenceActivityType.Offline);
+		} else if (isInstanciated() && !isPresenceModelActivitySet()) {
+			PresenceModel model = LinphoneCoreFactoryImpl.instance().createPresenceModel(PresenceActivityType.Offline, null);
+			getLc().setPresenceModel(model);
+		}
 	}
 
 	public static synchronized final LinphoneManager getInstance() {
@@ -360,11 +284,11 @@ public class LinphoneManager implements LinphoneCoreListener {
 
 		throw new RuntimeException("Linphone Manager should be created before accessed");
 	}
-	
+
 	public static synchronized final LinphoneCore getLc() {
 		return getInstance().mLc;
 	}
-	
+
 	public String getLPConfigXsdPath() {
 		return mLPConfigXsd;
 	}
@@ -373,7 +297,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 		String to = address.getText().toString();
 		newOutgoingCall(to, address.getDisplayedName());
 	}
-	
+
 	public void newOutgoingCall(String to, String displayName) {
 //		if (mLc.isIncall()) {
 //			listenerDispatcher.tryingNewOutgoingCallButAlreadyInCall();
@@ -398,7 +322,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 		lAddress.setDisplayName(displayName);
 
 		boolean isLowBandwidthConnection = !LinphoneUtils.isHightBandwidthConnection(LinphoneService.instance().getApplicationContext());
-		
+
 		if (mLc.isNetworkReachable()) {
 			try {
 				if (Version.isVideoCapable()) {
@@ -408,8 +332,8 @@ public class LinphoneManager implements LinphoneCoreListener {
 				} else {
 					CallManager.getInstance().inviteAddress(lAddress, false, isLowBandwidthConnection);
 				}
-				
-	
+
+
 			} catch (LinphoneCoreException e) {
 				mListenerDispatcher.tryingNewOutgoingCallButCannotGetCallParameters();
 				return;
@@ -420,10 +344,10 @@ public class LinphoneManager implements LinphoneCoreListener {
 			Log.e("Error: " + getString(R.string.error_network_unreachable));
 		}
 	}
-	
+
 	private void resetCameraFromPreferences() {
 		boolean useFrontCam = mPrefs.useFrontCam();
-		
+
 		int camId = 0;
 		AndroidCamera[] cameras = AndroidCameraConfiguration.retrieveCameras();
 		for (AndroidCamera androidCamera : cameras) {
@@ -433,7 +357,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 		LinphoneManager.getLc().setVideoDevice(camId);
 	}
 
-	
+
 	public static interface AddressType {
 		void setText(CharSequence s);
 		CharSequence getText();
@@ -448,7 +372,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 		public void onAlreadyInCall();
 	}
 
-	public boolean toggleEnableCamera() { 
+	public boolean toggleEnableCamera() {
 		if (mLc.isIncall()) {
 			boolean enabled = !mLc.getCurrentCall().cameraEnabled();
 			enableCamera(mLc.getCurrentCall(), enabled);
@@ -456,7 +380,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 		}
 		return false;
 	}
-	
+
 	public void enableCamera(LinphoneCall call, boolean enable) {
 		if (call != null) {
 			call.enableCamera(enable);
@@ -489,9 +413,9 @@ public class LinphoneManager implements LinphoneCoreListener {
 	}
 
 	public void initTunnelFromConf() {
-		if (!mLc.isTunnelAvailable()) 
+		if (!mLc.isTunnelAvailable())
 			return;
-		
+
 		NetworkInfo info = mConnectivityManager.getActiveNetworkInfo();
 		mLc.tunnelCleanServers();
 		String host = mPrefs.getTunnelHost();
@@ -547,107 +471,113 @@ public class LinphoneManager implements LinphoneCoreListener {
 			//traces alway start with traces enable to not missed first initialization
 			boolean isDebugLogEnabled = !(mR.getBoolean(R.bool.disable_every_log));
 			LinphoneCoreFactory.instance().setDebugMode(isDebugLogEnabled, getString(R.string.app_name));
-			
-			// Try to get remote provisioning
-			// First check if there is a remote provisioning url in the old preferences API
-			
-			String remote_provisioning = mPrefs.getRemoteProvisioningUrl();
-			if(remote_provisioning != null && remote_provisioning.length() > 0 && RemoteProvisioning.isAvailable()) {
-				RemoteProvisioning.download(remote_provisioning, mLinphoneConfigFile);
-			}
-			
-			initLiblinphone(c);
-			
-			PreferencesMigrator prefMigrator = new PreferencesMigrator(mServiceContext);
-			if (prefMigrator.isMigrationNeeded()) {
-				prefMigrator.doMigration();
-			}
-			
-			if (mServiceContext.getResources().getBoolean(R.bool.enable_push_id)) {
-				Compatibility.initPushNotificationService(mServiceContext);
-			}
 
-			IntentFilter lFilter = new IntentFilter(Intent.ACTION_SCREEN_ON);
-	        lFilter.addAction(Intent.ACTION_SCREEN_OFF);
-	        mServiceContext.registerReceiver(mKeepAliveReceiver, lFilter);
-	        
-			updateNetworkReachability();
-			
-	        startBluetooth();
-	        resetCameraFromPreferences();
+			mLc = LinphoneCoreFactory.instance().createLinphoneCore(this, mLinphoneConfigFile, mLinphoneFactoryConfigFile, null, c);
+			//initLiblinphone();
+
+			TimerTask lTask = new TimerTask() {
+				@Override
+				public void run() {
+					mLc.iterate();
+				}
+			};
+			/*use schedule instead of scheduleAtFixedRate to avoid iterate from being call in burst after cpu wake up*/
+			mTimer = new Timer("Linphone scheduler");
+			mTimer.schedule(lTask, 0, 20);
 		}
 		catch (Exception e) {
+			e.printStackTrace();
 			Log.e(e, "Cannot start linphone");
 		}
 	}
-	
-	public synchronized void initLiblinphone(Context c) throws LinphoneCoreException {
+
+	private synchronized void initLiblinphone() throws LinphoneCoreException {
 		boolean isDebugLogEnabled = !(mR.getBoolean(R.bool.disable_every_log)) && mPrefs.isDebugEnabled();
 		LinphoneCoreFactory.instance().setDebugMode(isDebugLogEnabled, getString(R.string.app_name));
-		
-		mLc = LinphoneCoreFactory.instance().createLinphoneCore(this, mLinphoneConfigFile, mLinphoneFactoryConfigFile, null);
-		mLc.setContext(c);
+
+		PreferencesMigrator prefMigrator = new PreferencesMigrator(mServiceContext);
+		prefMigrator.migrateRemoteProvisioningUriIfNeeded();
+
+		if (prefMigrator.isMigrationNeeded()) {
+			prefMigrator.doMigration();
+		}
+
+		// Some devices could be using software AEC before
+		// This will disable it in favor of hardware AEC if available
+		if (prefMigrator.isEchoMigratioNeeded()) {
+			Log.d("Echo canceller configuration need to be updated");
+			prefMigrator.doEchoMigration();
+			mPrefs.echoConfigurationUpdated();
+		}
+
+		mLc.setContext(mServiceContext);
+		mLc.setZrtpSecretsCache(basePath + "/zrtp_secrets");
+
 		try {
-			String versionName = c.getPackageManager().getPackageInfo(c.getPackageName(), 0).versionName;
+			String versionName = mServiceContext.getPackageManager().getPackageInfo(mServiceContext.getPackageName(), 0).versionName;
 			if (versionName == null) {
-				versionName = String.valueOf(c.getPackageManager().getPackageInfo(c.getPackageName(), 0).versionCode);
+				versionName = String.valueOf(mServiceContext.getPackageManager().getPackageInfo(mServiceContext.getPackageName(), 0).versionCode);
 			}
 			mLc.setUserAgent("LinphoneAndroid", versionName);
 		} catch (NameNotFoundException e) {
 			Log.e(e, "cannot get version name");
 		}
 
-		mLc.setZrtpSecretsCache(basePath + "/zrtp_secrets");
-
-		mLc.setRing(null);
+		if (mR.getBoolean(R.bool.use_linphonecore_ringing)) {
+			disableRinging();
+		} else {
+			mLc.setRing(null);
+		}
 		mLc.setRootCA(mLinphoneRootCaFile);
 		mLc.setPlayFile(mPauseSoundFile);
 		mLc.setChatDatabasePath(mChatDatabaseFile);
+		//mLc.setCallErrorTone(Reason.NotFound, mErrorToneFile);
 
 		int availableCores = Runtime.getRuntime().availableProcessors();
 		Log.w("MediaStreamer : " + availableCores + " cores detected and configured");
 		mLc.setCpuCount(availableCores);
-		
-		int camId = 0;
-		AndroidCamera[] cameras = AndroidCameraConfiguration.retrieveCameras();
-		for (AndroidCamera androidCamera : cameras) {
-			if (androidCamera.frontFacing == mPrefs.useFrontCam())
-				camId = androidCamera.id;
-		}
-		LinphoneManager.getLc().setVideoDevice(camId);
-		
+
 		initTunnelFromConf();
-        
-		TimerTask lTask = new TimerTask() {
-			@Override
-			public void run() {
-				mLc.iterate();
-			}
-		};
-		/*use schedule instead of scheduleAtFixedRate to avoid iterate from being call in burst after cpu wake up*/
-		mTimer = new Timer("Linphone scheduler");
-		mTimer.schedule(lTask, 0, 20); 
+
+		int migrationResult = getLc().migrateToMultiTransport();
+		Log.d("Migration to multi transport result = " + migrationResult);
+
+		if (mServiceContext.getResources().getBoolean(R.bool.enable_push_id)) {
+			Compatibility.initPushNotificationService(mServiceContext);
+		}
+
+		IntentFilter lFilter = new IntentFilter(Intent.ACTION_SCREEN_ON);
+        lFilter.addAction(Intent.ACTION_SCREEN_OFF);
+        mServiceContext.registerReceiver(mKeepAliveReceiver, lFilter);
+
+		updateNetworkReachability();
+
+		if (Version.sdkAboveOrEqual(Version.API11_HONEYCOMB_30)) {
+			BluetoothManager.getInstance().initBluetooth();
+		}
+        resetCameraFromPreferences();
 	}
 
 	private void copyAssetsFromPackage() throws IOException {
 		copyIfNotExist(R.raw.oldphone_mono, mRingSoundFile);
 		copyIfNotExist(R.raw.ringback, mRingbackSoundFile);
 		copyIfNotExist(R.raw.toy_mono, mPauseSoundFile);
+		copyIfNotExist(R.raw.incoming_chat, mErrorToneFile);
 		copyIfNotExist(R.raw.linphonerc_default, mLinphoneConfigFile);
 		copyFromPackage(R.raw.linphonerc_factory, new File(mLinphoneFactoryConfigFile).getName());
 		copyIfNotExist(R.raw.lpconfig, mLPConfigXsd);
 		copyIfNotExist(R.raw.rootca, mLinphoneRootCaFile);
 	}
-	
+
 	private void copyIfNotExist(int ressourceId,String target) throws IOException {
 		File lFileToCopy = new File(target);
 		if (!lFileToCopy.exists()) {
-			copyFromPackage(ressourceId,lFileToCopy.getName()); 
+			copyFromPackage(ressourceId,lFileToCopy.getName());
 		}
 	}
-	
+
 	private void copyFromPackage(int ressourceId,String target) throws IOException{
-		FileOutputStream lOutputStream = mServiceContext.openFileOutput (target, 0); 
+		FileOutputStream lOutputStream = mServiceContext.openFileOutput (target, 0);
 		InputStream lInputStream = mR.openRawResource(ressourceId);
 		int readByte;
 		byte[] buff = new byte[8048];
@@ -665,60 +595,57 @@ public class LinphoneManager implements LinphoneCoreListener {
 		}
 		return false;
 	}
-	
+
 	public boolean detectAudioCodec(String mime){
 		for (PayloadType audioCodec : mLc.getAudioCodecs()) {
 			if (mime.equals(audioCodec.getMime())) return true;
 		}
 		return false;
 	}
-	
+
 	public void updateNetworkReachability() {
 		ConnectivityManager cm = (ConnectivityManager) mServiceContext.getSystemService(Context.CONNECTIVITY_SERVICE);
 		NetworkInfo eventInfo = cm.getActiveNetworkInfo();
 
 		if (eventInfo == null || eventInfo.getState() == NetworkInfo.State.DISCONNECTED) {
 			Log.i("No connectivity: setting network unreachable");
-			if (isNetworkReachable) {
-				isNetworkReachable = false;
-				mLc.setNetworkReachable(isNetworkReachable);
-			}
+			mLc.setNetworkReachable(false);
 		} else if (eventInfo.getState() == NetworkInfo.State.CONNECTED){
 			manageTunnelServer(eventInfo);
+
 			boolean wifiOnly = LinphonePreferences.instance().isWifiOnlyEnabled();
-			if ((eventInfo.getTypeName().equals("WIFI")) || (!eventInfo.getTypeName().equals("WIFI") && !wifiOnly)) {
-				if (!isNetworkReachable) {
-					isNetworkReachable = true;
-					mLc.setNetworkReachable(isNetworkReachable);
-					Log.i(eventInfo.getTypeName()," connected: setting network reachable (network = " + eventInfo.getTypeName() + ")");
+			if (wifiOnly){
+				if (eventInfo.getType()==ConnectivityManager.TYPE_WIFI)
+					mLc.setNetworkReachable(true);
+				else {
+					Log.i("Wifi-only mode, setting network not reachable");
+					mLc.setNetworkReachable(false);
 				}
-			} else {
-				if (isNetworkReachable) {
-					isNetworkReachable = false;
-					mLc.setNetworkReachable(isNetworkReachable);
-					Log.i(eventInfo.getTypeName()," connected: wifi only activated, setting network unreachable (network = " + eventInfo.getTypeName() + ")");
+			}else{
+				int curtype=eventInfo.getType();
+
+				if (curtype!=mLastNetworkType){
+					//if kind of network has changed, we need to notify network_reachable(false) to make sure all current connections are destroyed.
+					//they will be re-created during setNetworkReachable(true).
+					Log.i("Connectivity has changed.");
+					mLc.setNetworkReachable(false);
 				}
+				mLc.setNetworkReachable(true);
+				mLastNetworkType=curtype;
 			}
 		}
 	}
 
-	@TargetApi(Build.VERSION_CODES.HONEYCOMB) 
+	@TargetApi(Build.VERSION_CODES.HONEYCOMB)
 	private void doDestroy() {
-		ChatStorage.getInstance().close();
+		if (LinphoneService.isReady()) // indeed, no need to crash
+			ChatStorage.getInstance().close();
 
-		try {
-			mServiceContext.unregisterReceiver(bluetoothReiceiver);
-		} catch (Exception e) {}
-		
-		try {
-			if (Version.sdkAboveOrEqual(Version.API11_HONEYCOMB_30))
-				mBluetoothAdapter.closeProfileProxy(BluetoothProfile.HEADSET, mBluetoothHeadset);
-		} catch (Exception e) {}
-		
+		BluetoothManager.getInstance().destroy();
 		try {
 			mTimer.cancel();
 			mLc.destroy();
-		} 
+		}
 		catch (RuntimeException e) {
 			e.printStackTrace();
 		}
@@ -731,7 +658,8 @@ public class LinphoneManager implements LinphoneCoreListener {
 
 	public static synchronized void destroy() {
 		if (instance == null) return;
-		sExited=true;
+		getInstance().changeStatusToOffline();
+		sExited = true;
 		instance.doDestroy();
 	}
 
@@ -750,7 +678,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 	public void connectivityChanged(ConnectivityManager cm, boolean noConnectivity) {
 		NetworkInfo eventInfo = cm.getActiveNetworkInfo();
 		updateNetworkReachability();
-		
+
 		if (connectivityListener != null) {
 			connectivityListener.onConnectivityChanged(mServiceContext, eventInfo, cm);
 		}
@@ -772,23 +700,23 @@ public class LinphoneManager implements LinphoneCoreListener {
 	private Vibrator mVibrator;
 
 	public void displayWarning(LinphoneCore lc, String message) {}
-	public void authInfoRequested(LinphoneCore lc, String realm, String username) {}
+	public void authInfoRequested(LinphoneCore lc, String realm, String username, String domain) {}
 	public void byeReceived(LinphoneCore lc, String from) {}
 	public void displayMessage(LinphoneCore lc, String message) {}
 	public void show(LinphoneCore lc) {}
-	
+
 	public void newSubscriptionRequest(LinphoneCore lc, LinphoneFriend lf, String url) {
 		for (LinphoneSimpleListener listener : getSimpleListeners(LinphoneActivity.class)) {
 			((LinphoneActivity) listener).onNewSubscriptionRequestReceived(lf, url);
 		}
 	}
-	
+
 	public void notifyPresenceReceived(LinphoneCore lc, LinphoneFriend lf) {
 		for (LinphoneSimpleListener listener : getSimpleListeners(LinphoneActivity.class)) {
 			((LinphoneActivity) listener).onNotifyPresenceReceived(lf);
 		}
 	}
-	
+
 	public void textReceived(LinphoneCore lc, LinphoneChatRoom cr,
 			LinphoneAddress from, String message) {
 		//deprecated
@@ -800,18 +728,18 @@ public class LinphoneManager implements LinphoneCoreListener {
 		if (dtmfReceivedListener != null)
 			dtmfReceivedListener.onDTMFReceived(call, dtmf);
 	}
-	
+
 	private LinphoneOnDTMFReceivedListener dtmfReceivedListener;
 	public void setOnDTMFReceivedListener(LinphoneOnDTMFReceivedListener listener) {
 		dtmfReceivedListener = listener;
 	}
-	
+
 	@Override
 	public void messageReceived(LinphoneCore lc, LinphoneChatRoom cr, LinphoneChatMessage message) {
 		if (mServiceContext.getResources().getBoolean(R.bool.disable_chat)) {
 			return;
 		}
-		
+
 		LinphoneAddress from = message.getFrom();
 
 		String textMessage = message.getText();
@@ -823,7 +751,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 			//Bitmap bm = ChatFragment.downloadImage(url);
 			id = ChatStorage.getInstance().saveImageMessage(from.asStringUriOnly(), "", null, message.getExternalBodyUrl(), message.getTime());
 		}
-		
+
 		try {
 			LinphoneUtils.findUriPictureOfContactAndSetDisplayName(from, mServiceContext.getContentResolver());
 			if (!mServiceContext.getResources().getBoolean(R.bool.disable_chat__message_notification)) {
@@ -839,23 +767,37 @@ public class LinphoneManager implements LinphoneCoreListener {
 	public String getLastLcStatusMessage() {
 		return lastLcStatusMessage;
 	}
+
 	public void displayStatus(final LinphoneCore lc, final String message) {
 		Log.i(message);
 		lastLcStatusMessage=message;
 		mListenerDispatcher.onDisplayStatus(message);
 	}
 
-
-	public void globalState(final LinphoneCore lc, final LinphoneCore.GlobalState state, final String message) {
+	public void globalState(final LinphoneCore lc, final GlobalState state, final String message) {
 		Log.i("new state [",state,"]");
+
+		if (state == GlobalState.GlobalOn) {
+			mHandler.post(new Runnable() {
+				@Override
+				public void run() {
+					synchronized (this) {
+						try {
+							initLiblinphone();
+						} catch (LinphoneCoreException e) {
+							e.printStackTrace();
+						}
+					}
+				}
+			});
+		}
+
 		mListenerDispatcher.onGlobalStateChanged(state, message);
 	}
 
-
-
-	public void registrationState(final LinphoneCore lc, final LinphoneProxyConfig cfg,final LinphoneCore.RegistrationState state,final String message) {
+	public void registrationState(final LinphoneCore lc, final LinphoneProxyConfig proxy,final RegistrationState state,final String message) {
 		Log.i("new state ["+state+"]");
-		mListenerDispatcher.onRegistrationStateChanged(state, message);
+		mListenerDispatcher.onRegistrationStateChanged(proxy, state, message);
 	}
 
 	private int savedMaxCallWhileGsmIncall;
@@ -869,7 +811,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 	}
 	private synchronized void allowSIPCalls() {
 		if (savedMaxCallWhileGsmIncall == 0) {
-			Log.w("SIP calls are already allowed as no GSM call knowned to be running");
+			Log.w("SIP calls are already allowed as no GSM call known to be running");
 			return;
 		}
 		mLc.setMaxCalls(savedMaxCallWhileGsmIncall);
@@ -884,7 +826,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 			mThis.preventSIPCalls();
 		}
 	}
-	
+
 	public Context getContext() {
 		try {
 			if (LinphoneActivity.isInstanciated())
@@ -906,64 +848,73 @@ public class LinphoneManager implements LinphoneCoreListener {
 	@SuppressLint("Wakelock")
 	public void callState(final LinphoneCore lc,final LinphoneCall call, final State state, final String message) {
 		Log.i("new state [",state,"]");
-		if (state == IncomingReceived && !call.equals(lc.getCurrentCall())) {
+		if (state == State.IncomingReceived && !call.equals(lc.getCurrentCall())) {
 			if (call.getReplacedCall()!=null){
 				// attended transfer
 				// it will be accepted automatically.
 				return;
-			} 
+			}
 		}
-		
-		if (state == IncomingReceived && mR.getBoolean(R.bool.auto_answer_calls)) {
+
+		if (state == State.IncomingReceived && mR.getBoolean(R.bool.auto_answer_calls)) {
 			try {
 				mLc.acceptCall(call);
 			} catch (LinphoneCoreException e) {
 				e.printStackTrace();
 			}
 		}
-		else if (state == IncomingReceived || (state == State.CallIncomingEarlyMedia && mR.getBoolean(R.bool.allow_ringing_while_early_media))) {
+		else if (state == State.IncomingReceived || (state == State.CallIncomingEarlyMedia && mR.getBoolean(R.bool.allow_ringing_while_early_media))) {
 			// Brighten screen for at least 10 seconds
 			if (mLc.getCallsNb() == 1) {
+				BluetoothManager.getInstance().disableBluetoothSCO(); // Just in case
+
 				ringingCall = call;
 				startRinging();
 				// otherwise there is the beep
 			}
-		} else if (call == ringingCall && isRinging) { 
+		} else if (call == ringingCall && isRinging) {
 			//previous state was ringing, so stop ringing
 			stopRinging();
 		}
-		
-		if (state == LinphoneCall.State.Connected) {
+
+		if (state == State.Connected) {
 			if (mLc.getCallsNb() == 1) {
 				requestAudioFocus();
 				Compatibility.setAudioManagerInCallMode(mAudioManager);
 			}
-			
+
 			if (Hacks.needSoftvolume()) {
+				Log.w("Using soft volume audio hack");
 				adjustVolume(0); // Synchronize
 			}
 		}
+		
+		if (state == State.OutgoingEarlyMedia) {
+			Compatibility.setAudioManagerInCallMode(mAudioManager);
+		}
 
-		if (state == CallEnd || state == Error) {
+		if (state == State.CallReleased || state == State.Error) {
 			if (mLc.getCallsNb() == 0) {
 				if (mAudioFocused){
-					int res=mAudioManager.abandonAudioFocus(null);
+					int res = mAudioManager.abandonAudioFocus(null);
 					Log.d("Audio focus released a bit later: " + (res == AudioManager.AUDIOFOCUS_REQUEST_GRANTED ? "Granted" : "Denied"));
-					mAudioFocused=false;
+					mAudioFocused = false;
 				}
-				
+
 				Context activity = getContext();
 				if (activity != null) {
 					TelephonyManager tm = (TelephonyManager) activity.getSystemService(Context.TELEPHONY_SERVICE);
 					if (tm.getCallState() == TelephonyManager.CALL_STATE_IDLE) {
-						mAudioManager.setMode(AudioManager.MODE_NORMAL);
 						Log.d("---AudioManager: back to MODE_NORMAL");
+						mAudioManager.setMode(AudioManager.MODE_NORMAL);
+						Log.d("All call terminated, routing back to earpiece");
+						routeAudioToReceiver();
 					}
 				}
 			}
 		}
 
-		if (state == CallEnd) {
+		if (state == State.CallEnd) {
 			if (mLc.getCallsNb() == 0) {
 				if (mIncallWakeLock != null && mIncallWakeLock.isHeld()) {
 					mIncallWakeLock.release();
@@ -973,7 +924,19 @@ public class LinphoneManager implements LinphoneCoreListener {
 				}
 			}
 		}
+
 		if (state == State.StreamsRunning) {
+			if (BluetoothManager.getInstance().isBluetoothHeadsetAvailable()) {
+				BluetoothManager.getInstance().routeAudioToBluetooth();
+				// Hack to ensure the bluetooth route is really used
+				mHandler.postDelayed(new Runnable() {
+					@Override
+					public void run() {
+						BluetoothManager.getInstance().routeAudioToBluetooth();
+					}
+				}, 500);
+			}
+
 			if (mIncallWakeLock == null) {
 				mIncallWakeLock = mPowerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,	"incall");
 			}
@@ -996,17 +959,16 @@ public class LinphoneManager implements LinphoneCoreListener {
 
 	public void ecCalibrationStatus(final LinphoneCore lc,final EcCalibratorStatus status, final int delayMs,
 			final Object data) {
+		routeAudioToReceiver();
 		EcCalibrationListener listener = (EcCalibrationListener) data;
 		listener.onEcCalibrationStatus(status, delayMs);
 	}
-	
-
 
 	public void startEcCalibration(EcCalibrationListener l) throws LinphoneCoreException {
+		routeAudioToSpeaker();
 		int oldVolume = mAudioManager.getStreamVolume(STREAM_VOICE_CALL);
 		int maxVolume = mAudioManager.getStreamMaxVolume(STREAM_VOICE_CALL);
 		mAudioManager.setStreamVolume(STREAM_VOICE_CALL, maxVolume, 0);
-
 		mLc.startEchoCalibration(l);
 
 		mAudioManager.setStreamVolume(STREAM_VOICE_CALL, oldVolume, 0);
@@ -1022,11 +984,11 @@ public class LinphoneManager implements LinphoneCoreListener {
 
 	private boolean isRinging;
 	private boolean disableRinging = false;
-	
+
 	public void disableRinging() {
 		disableRinging = true;
 	}
-	
+
 	private void requestAudioFocus(){
 		if (!mAudioFocused){
 			int res = mAudioManager.requestAudioFocus(null, AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT );
@@ -1034,16 +996,20 @@ public class LinphoneManager implements LinphoneCoreListener {
 			if (res == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) mAudioFocused=true;
 		}
 	}
-	
+
 	private synchronized void startRinging()  {
 		if (disableRinging) {
+			routeAudioToSpeaker();
 			return;
+		}
+		if (mR.getBoolean(R.bool.allow_ringing_while_early_media)) {
+			routeAudioToSpeaker(); // Need to be able to ear the ringtone during the early media
 		}
 
 		if (Hacks.needGalaxySAudioHack()) {
 			mAudioManager.setMode(MODE_RINGTONE);
 		}
-		
+
 		try {
 			if ((mAudioManager.getRingerMode() == AudioManager.RINGER_MODE_VIBRATE || mAudioManager.getRingerMode() == AudioManager.RINGER_MODE_NORMAL) && mVibrator != null) {
 				long[] patern = {0,1000,1000};
@@ -1053,7 +1019,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 				requestAudioFocus();
 				mRingerPlayer = new MediaPlayer();
 				mRingerPlayer.setAudioStreamType(STREAM_RING);
-				
+
 				String ringtone = LinphonePreferences.instance().getRingtone(android.provider.Settings.System.DEFAULT_RINGTONE_URI.toString());
 				try {
 					if (ringtone.startsWith("content://")) {
@@ -1066,7 +1032,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 				} catch (IOException e) {
 					Log.e(e, "Cannot set ringtone");
 				}
-				
+
 				mRingerPlayer.prepare();
 				mRingerPlayer.setLooping(true);
 				mRingerPlayer.start();
@@ -1088,16 +1054,19 @@ public class LinphoneManager implements LinphoneCoreListener {
 		if (mVibrator != null) {
 			mVibrator.cancel();
 		}
-		
+
 		if (Hacks.needGalaxySAudioHack())
 			mAudioManager.setMode(AudioManager.MODE_NORMAL);
-		
+
 		isRinging = false;
 		// You may need to call galaxys audio hack after this method
-		routeAudioToReceiver();
+		if (!BluetoothManager.getInstance().isBluetoothHeadsetAvailable()) {
+			Log.d("Stopped ringing, routing back to earpiece");
+			routeAudioToReceiver();
+		}
 	}
 
-	
+
 	public static String extractADisplayName(Resources r, LinphoneAddress address) {
 		if (address == null) return r.getString(R.string.unknown_incoming_call_name);
 
@@ -1110,7 +1079,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 			String rms = address.toString();
 			if (rms != null && rms.length() > 1)
 				return rms;
-				
+
 			return r.getString(R.string.unknown_incoming_call_name);
 		}
 	}
@@ -1120,15 +1089,15 @@ public class LinphoneManager implements LinphoneCoreListener {
 	}
 
 	/**
-	 * 
-	 * @return false if already in video call. 
+	 *
+	 * @return false if already in video call.
 	 */
 	public boolean addVideo() {
 		LinphoneCall call = mLc.getCurrentCall();
 		enableCamera(call, true);
 		return reinviteWithVideo();
 	}
-	
+
 	public boolean acceptCallIfIncomingPending() throws LinphoneCoreException {
 		if (mLc.isInComingInvitePending()) {
 			mLc.acceptCall(mLc.getCurrentCall());
@@ -1136,7 +1105,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 		}
 		return false;
 	}
-	
+
 	public boolean acceptCall(LinphoneCall call) {
 		try {
 			mLc.acceptCall(call);
@@ -1162,7 +1131,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 	}
 
 	public void adjustVolume(int i) {
-		if (Build.VERSION.SDK_INT<15) {
+		if (Build.VERSION.SDK_INT < 15) {
 			int oldVolume = mAudioManager.getStreamVolume(LINPHONE_VOLUME_STREAM);
 			int maxVolume = mAudioManager.getStreamMaxVolume(LINPHONE_VOLUME_STREAM);
 
@@ -1173,7 +1142,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 			mLc.setPlaybackGain((nextVolume - maxVolume)* dbStep);
 		} else
 			// starting from ICS, volume must be adjusted by the application, at least for STREAM_VOICE_CALL volume stream
-			mAudioManager.adjustStreamVolume(LINPHONE_VOLUME_STREAM, i<0?AudioManager.ADJUST_LOWER:AudioManager.ADJUST_RAISE, 0);
+			mAudioManager.adjustStreamVolume(LINPHONE_VOLUME_STREAM, i < 0 ? AudioManager.ADJUST_LOWER : AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI);
 	}
 
 	public static Boolean isProximitySensorNearby(final SensorEvent event) {
@@ -1234,7 +1203,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 			Log.i("proximity sensor already active for " + activity.getLocalClassName());
 			return;
 		}
-		
+
 		if (sProximityDependentActivities.isEmpty()) {
 			SensorManager sm = (SensorManager) activity.getSystemService(Context.SENSOR_SERVICE);
 			Sensor s = sm.getDefaultSensor(Sensor.TYPE_PROXIMITY);
@@ -1301,15 +1270,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 				boolean sendCamera = mLc.getConferenceSize() == 0;
 				enableCamera(call, sendCamera);
 			}
-			
-			Context activity = getContext();
-			if (activity != null) {
-				TelephonyManager tm = (TelephonyManager) activity.getSystemService(Context.TELEPHONY_SERVICE);
-				if (state == State.CallEnd && mLc.getCallsNb() == 0 && tm.getCallState() == TelephonyManager.CALL_STATE_IDLE) {
-					routeAudioToReceiver();
-				}
-			}
-			
+
 			if (serviceListener != null) serviceListener.onCallStateChanged(call, state, message);
 			for (LinphoneOnCallStateChangedListener l : getSimpleListeners(LinphoneOnCallStateChangedListener.class)) {
 				l.onCallStateChanged(call, state, message);
@@ -1324,11 +1285,11 @@ public class LinphoneManager implements LinphoneCoreListener {
 			if (serviceListener != null) serviceListener.onGlobalStateChanged( state, message);
 		}
 
-		public void onRegistrationStateChanged(RegistrationState state,
+		public void onRegistrationStateChanged(LinphoneProxyConfig proxy, RegistrationState state,
 				String message) {
-			if (serviceListener != null) serviceListener.onRegistrationStateChanged(state, message);
+			if (serviceListener != null) serviceListener.onRegistrationStateChanged(proxy, state, message);
 			for (LinphoneOnRegistrationStateChangedListener listener : getSimpleListeners(LinphoneOnRegistrationStateChangedListener.class)) {
-				listener.onRegistrationStateChanged(state);
+				listener.onRegistrationStateChanged(proxy, state, message);
 			}
 		}
 
@@ -1348,7 +1309,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 	public static final boolean isInstanciated() {
 		return instance != null;
 	}
-	
+
 	public synchronized LinphoneCall getPendingIncomingCall() {
 		LinphoneCall currentCall = mLc.getCurrentCall();
 		if (currentCall == null) return null;
@@ -1360,9 +1321,9 @@ public class LinphoneManager implements LinphoneCoreListener {
 		return incomingPending ? currentCall : null;
 	}
 
-	
-	
-	
+
+
+
 	@SuppressWarnings("serial")
 	public static class LinphoneConfigException extends LinphoneException {
 
@@ -1390,7 +1351,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 	@Override
 	public void transferState(LinphoneCore lc, LinphoneCall call,
 			State new_call_state) {
-		
+
 	}
 	@Override
 	public void infoReceived(LinphoneCore lc, LinphoneCall call, LinphoneInfoMessage info) {
@@ -1414,7 +1375,46 @@ public class LinphoneManager implements LinphoneCoreListener {
 	@Override
 	public void publishStateChanged(LinphoneCore lc, LinphoneEvent ev,
 			PublishState state) {
-		// TODO Auto-generated method stub
-		
+		Log.d("Publish state changed to " + state + " for event name " + ev.getEventName());
+	}
+
+	private LinphoneOnComposingReceivedListener composingReceivedListener;
+	public void setOnComposingReceivedListener(LinphoneOnComposingReceivedListener listener) {
+		composingReceivedListener = listener;
+	}
+	@Override
+	public void isComposingReceived(LinphoneCore lc, LinphoneChatRoom cr) {
+		Log.d("Composing received for chatroom " + cr.getPeerAddress().asStringUriOnly());
+		if (composingReceivedListener != null)
+			composingReceivedListener.onComposingReceived(cr);
+	}
+
+	private LinphoneOnRemoteProvisioningListener remoteProvisioningListener;
+	public void setOnRemoteProvisioningListener(LinphoneOnRemoteProvisioningListener listener) {
+		remoteProvisioningListener = listener;
+	}
+	@Override
+	public void configuringStatus(LinphoneCore lc,
+			RemoteProvisioningState state, String message) {
+		Log.d("Remote provisioning status = " + state.toString() + " (" + message + ")");
+		if (RemoteProvisioningActivity.getInstance() != null) {
+			RemoteProvisioningActivity.getInstance().onConfiguringStatus(state);
+		}
+
+		if (remoteProvisioningListener != null) {
+			remoteProvisioningListener.onConfiguringStatus(state);
+		}
+
+		if (state == RemoteProvisioningState.ConfiguringSuccessful) {
+			if (LinphonePreferences.instance().isProvisioningLoginViewEnabled()) {
+				LinphoneProxyConfig proxyConfig = lc.createProxyConfig();
+				try {
+					LinphoneAddress addr = LinphoneCoreFactory.instance().createLinphoneAddress(proxyConfig.getIdentity());
+					wizardLoginViewDomain = addr.getDomain();
+				} catch (LinphoneCoreException e) {
+					wizardLoginViewDomain = null;
+				}
+			}
+		}
 	}
 }

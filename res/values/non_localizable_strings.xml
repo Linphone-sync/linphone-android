@@ -67,9 +67,6 @@
     <string name="pref_video_initiate_call_with_video_key">pref_video_initiate_call_with_video_key</string>
     <string name="pref_video_enable_key">pref_video_enable_key</string>
 	<string name="pref_preferred_video_size_key">pref_preferred_video_size_key</string>
-	<string name="pref_preferred_video_size_hd_key">pref_preferred_video_size_hd_key</string>
-	<string name="pref_preferred_video_size_vga_key">pref_preferred_video_size_vga_key</string>
-	<string name="pref_preferred_video_size_qvga_key">pref_preferred_video_size_qvga_key</string>
     <string name="pref_animation_enable_key">pref_animation_enable_key</string>
     <string name="pref_escape_plus_key">pref_escape_plus_key</string>
     <string name="pref_echo_cancellation_key">pref_echo_cancellation_key</string>
@@ -100,6 +97,9 @@
     <string name="pref_media_encryption_key_srtp">srtp</string>
     <string name="pref_media_encryption_key_zrtp">zrtp</string>
 	<string name="pref_background_mode_key">pref_background_mode_key</string>
+	<string name="pref_codec_bitrate_limit_key">pref_codec_bitrate_limit_key</string>
+	<string name="pref_adaptative_rate_control_key">pref_adaptative_rate_control_key</string>
+	
     
 	<string name="push_reg_id_key">push_reg_id_key</string>
 	<string name="push_sender_id_key">push_sender_id_key</string>
@@ -116,6 +116,8 @@
     <string name="pref_display_name_key">pref_display_name_key</string>
     <string name="pref_user_name_key">pref_user_name_key</string>
     <string name="pref_expire_key">pref_expire_key</string>
+	<string name="pref_avpf_key">pref_avpf_key</string>
+	<string name="pref_avpf_rr_interval_key">pref_avpf_rr_interval_key</string>
     
 	<string name="pref_rfc2833_dtmf_key">pref_rfc2833_dtmf_key</string>
 	<string name="pref_sipinfo_dtmf_key">pref_sipinfo_dtmf_key</string>

@@ -203,6 +203,7 @@
 	<string name="pref_help_outbound_proxy">Faire passer tous les appels via le serveur mandataire SIP</string>
 	<string name="pref_help_username">Exemple: john si votre compte est john@sip.example.org</string>
 	<string name="pref_help_domain">sip.example.org si votre compte est john@sip.example.org</string>
+	<string name="pref_help_password">Vous devrez retaper votre mot de passe si vous changez votre nom d\'utilisateur ou le domaine</string>
 	
 	<string name="delete">Supprimer</string>
 	<string name="chat">Chat</string>
@@ -230,6 +231,7 @@
 	<string name="call_stats_upload">Bande passante envoi :</string>
 	<string name="call_stats_download">Bande passante réception :</string>
 	<string name="call_stats_ice">Connexion ICE :</string>
+	<string name="call_stats_video_resolution">Taille vidéo:</string>
 	
 	<!-- Used by Android to help blind people by describing them images -->
 	<string name="content_description_add_contact"></string>
@@ -377,6 +379,11 @@
 	<string name="download_image">Télécharger</string>
 	<string name="download_image_failed">Téléchargement échoué. Vérifiez votre connexion internet ou reéssayez plus tard.</string>
 	
+	<string name="pref_auth_userid">Identifiant d\'authentification</string>
+	<string name="pref_help_auth_userid">Entrez votre identifiant (optionnel)</string>
+	<string name="pref_display_name">Nom d\'affichage</string>
+	<string name="pref_help_display_name">Entrez votre nom (optionnel)</string>
+	
 	<string name="wait">Merci de patienter...</string>
 	<string name="importing_messages">Mise à jour de la base des messages</string>
 	<string name="default_account_flag">Compte par défaut</string>
@@ -389,4 +396,13 @@
 	<string name="zrtp_accept">Accepter</string>
 	<string name="zrtp_deny">Refuser</string>
 	<string name="zrtp_help">Vous ne devriez accepter que si vous avez le même code (ci-dessus) que votre contact</string>
+	
+	<string name="remote_composing">Votre correspondant est en train de taper...</string>
+	<string name="unread_messages">%i messages non lus</string>
+	
+	<string name="retry">Renvoyer</string>
+	
+	<string name="remote_provisioning_failure">Erreur durant le téléchargement ou l\'application de la configuration distante...</string>
+	<string name="remote_provisioning_again_title">Remote provisioning</string>
+	<string name="remote_provisioning_again_message">Do you want to change the provisioning URI ?</string>
 </resources>

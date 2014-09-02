@@ -250,6 +250,7 @@
 	<string name="pref_help_outbound_proxy">Отправить все звонки через SIP прокси</string>
 	<string name="pref_help_username">Например: john если Ваш адрес john@sip.example.org</string>
 	<string name="pref_help_domain">sip.example.org если Ваш адрес john@sip.example.org</string>
+	<string name="pref_help_password">You have to re-enter your password if you edit the username and/or the domain</string>
 	
 	<string name="delete">Удалить</string>
 	<string name="chat">Чат</string>
@@ -277,6 +278,7 @@
 	<string name="call_stats_upload">Полоса пропускания загрузки:</string>
 	<string name="call_stats_download">Полоса пропускания скачивания:</string>
 	<string name="call_stats_ice">Подключение ICE:</string>
+	<string name="call_stats_video_resolution">Video size:</string>
 	
 	<!-- Used by Android to help blind people by describing them images -->
 	<string name="content_description_add_contact">Кнопка добавить к контактам</string>
@@ -425,9 +427,10 @@
 	<string name="download_image">Скачать</string>
     <string name="download_image_failed">Ошибка скачивания. Проверьте ваше интернет соединение или попробуйте позже.</string>
     
-    <string name="pref_auth_userid">Auth userid</string>
-	
+	<string name="pref_auth_userid">Auth userid</string>
 	<string name="pref_help_auth_userid">Enter authentication userid (optionnal)</string>
+	<string name="pref_display_name">Display name</string>
+	<string name="pref_help_display_name">Enter display name (optionnal)</string>
 	
 	<string name="pref_upnp_enable">Enable UPNP</string>
 	<string name="pref_manage">Manage</string>
@@ -444,4 +447,13 @@
 	<string name="zrtp_accept">Accept</string>
 	<string name="zrtp_deny">Deny</string>
 	<string name="zrtp_help">You should only accept if you have the same code (see above) as your correspondent</string>
+	
+	<string name="remote_composing">Remote is writing...</string>
+	<string name="unread_messages">%i unread messages</string>
+	
+	<string name="retry">Retry</string>
+	
+	<string name="remote_provisioning_failure">Failed to download or apply remote provisioning profile...</string>
+	<string name="remote_provisioning_again_title">Remote provisioning</string>
+	<string name="remote_provisioning_again_message">Do you want to change the provisioning URI ?</string>
 </resources>

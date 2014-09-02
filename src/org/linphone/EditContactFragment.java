@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.linphone.compatibility.Compatibility;
+import org.linphone.mediastream.Log;
 import org.linphone.mediastream.Version;
 import org.linphone.ui.AvatarWithShadow;
 
@@ -57,6 +58,7 @@ public class EditContactFragment extends Fragment {
 			}
 			if (getArguments().getString("NewSipAdress") != null) {
 				newSipOrNumberToAdd = getArguments().getString("NewSipAdress");
+				isNewContact = true;
 			}
 		}
 		
@@ -186,6 +188,17 @@ public class EditContactFragment extends Fragment {
 		return view;
 	}
 	
+	@Override
+	public void onResume() {
+		super.onResume();
+		
+		if (LinphoneActivity.isInstanciated()) {
+			if (getResources().getBoolean(R.bool.show_statusbar_only_on_dialer)) {
+				LinphoneActivity.instance().hideStatusBar();
+			}
+		}
+	}
+	
 	private void initNumbersFields(final TableLayout controls, final Contact contact) {
 		controls.removeAllViews();
 		numbersAndAddresses = new ArrayList<NewOrUpdatedNumberOrAddress>();
@@ -198,7 +211,7 @@ public class EditContactFragment extends Fragment {
 			}
 		}
 		if (newSipOrNumberToAdd != null) {
-			View view = displayNumberOrAddress(controls, newSipOrNumberToAdd, true);
+			View view = displayNumberOrAddress(controls, newSipOrNumberToAdd);
 			if (view != null)
 				controls.addView(view);
 		}
@@ -232,7 +245,8 @@ public class EditContactFragment extends Fragment {
 	}
 	
 	private View displayNumberOrAddress(final TableLayout controls, String numberOrAddress, boolean forceAddNumber) {
-		boolean isSip = numberOrAddress.startsWith("sip:");
+		boolean isSip = LinphoneUtils.isStrictSipAddress(numberOrAddress) || !LinphoneUtils.isNumberAddress(numberOrAddress);
+		
 		if (isSip) {
 			if (firstSipAddressIndex == -1) {
 				firstSipAddressIndex = controls.getChildCount();
@@ -250,7 +264,11 @@ public class EditContactFragment extends Fragment {
 		if (forceAddNumber) {
 			tempNounoa = new NewOrUpdatedNumberOrAddress(isSip);
 		} else {
-			tempNounoa = new NewOrUpdatedNumberOrAddress(numberOrAddress, isSip);
+			if(isNewContact) {
+				tempNounoa = new NewOrUpdatedNumberOrAddress(isSip, numberOrAddress);
+			} else {
+				tempNounoa = new NewOrUpdatedNumberOrAddress(numberOrAddress, isSip);
+			}
 		}
 		final NewOrUpdatedNumberOrAddress nounoa = tempNounoa;
 		numbersAndAddresses.add(nounoa);
@@ -486,6 +504,12 @@ public class EditContactFragment extends Fragment {
 			isSipAddress = isSip;
 		}
 		
+		public NewOrUpdatedNumberOrAddress(boolean isSip, String newSip) {
+			oldNumberOrAddress = null;
+			newNumberOrAddress = newSip;
+			isSipAddress = isSip;
+		}
+		
 		public void setNewNumberOrAddress(String newN) {
 			newNumberOrAddress = newN;
 		}
@@ -520,10 +544,16 @@ public class EditContactFragment extends Fragment {
 		}
 		
 		private void addNewNumber() {
+			if (newNumberOrAddress == null || newNumberOrAddress.length() == 0) {
+				return;
+			}
+			
 			if (isNewContact) {
 				if (isSipAddress) {
 					if (newNumberOrAddress.startsWith("sip:"))
 						newNumberOrAddress = newNumberOrAddress.substring(4);
+					if(!newNumberOrAddress.contains("@"))
+						newNumberOrAddress = newNumberOrAddress + "@" + getResources().getString(R.string.default_domain);
 					Compatibility.addSipAddressToContact(getActivity(), ops, newNumberOrAddress);
 				} else {
 					ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)        
@@ -541,7 +571,9 @@ public class EditContactFragment extends Fragment {
 				if (isSipAddress) {
 					if (newNumberOrAddress.startsWith("sip:"))
 						newNumberOrAddress = newNumberOrAddress.substring(4);
-					Compatibility.addSipAddressToContact(getActivity(), ops, newNumberOrAddress, rawContactId);
+					if(!newNumberOrAddress.contains("@"))
+						newNumberOrAddress = newNumberOrAddress + "@" + getResources().getString(R.string.default_domain);
+					Compatibility.addSipAddressToContact(getActivity(), ops, newNumberOrAddress, rawContactId);	
 				} else {
 					ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)         
 					    .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)       
@@ -556,9 +588,15 @@ public class EditContactFragment extends Fragment {
 		}
 		
 		private void updateNumber() {
+			if (newNumberOrAddress == null || newNumberOrAddress.length() == 0) {
+				return;
+			}
+			
 			if (isSipAddress) {
 				if (newNumberOrAddress.startsWith("sip:"))
 					newNumberOrAddress = newNumberOrAddress.substring(4);
+				if(!newNumberOrAddress.contains("@"))
+					newNumberOrAddress = newNumberOrAddress + "@" + getResources().getString(R.string.default_domain);
 				Compatibility.updateSipAddressForContact(ops, oldNumberOrAddress, newNumberOrAddress, String.valueOf(contactID));
 			} else {
 				String select = ContactsContract.Data.CONTACT_ID + "=? AND " 

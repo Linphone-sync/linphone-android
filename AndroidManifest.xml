@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
       package="org.linphone"
-      android:versionCode="2211" android:installLocation="auto"> 
-    <uses-sdk android:minSdkVersion="8" android:targetSdkVersion="17"/>
+      android:versionCode="2300" android:installLocation="auto"> 
+    <uses-sdk android:minSdkVersion="8" android:targetSdkVersion="19"/>
     
     <!-- Permissions for Push Notification -->
     <permission android:name="org.linphone.permission.C2D_MESSAGE" android:protectionLevel="signature" /> <!-- Change package ! -->
@@ -89,7 +89,7 @@
         <activity android:name="org.linphone.InCallActivity"
 		   android:theme="@style/FullScreen"
            android:noHistory="true"
-           android:launchMode="singleTask">
+           android:launchMode="singleTop">
 		<intent-filter>
                <action android:name="android.intent.action.MAIN" />
            </intent-filter>
@@ -102,21 +102,39 @@
                 <action android:name="android.intent.action.MAIN" />
             </intent-filter>
          </activity>
+         
+        <activity android:name="org.linphone.setup.RemoteProvisioningLoginActivity"
+		    android:theme="@style/NoTitle"
+            android:screenOrientation="nosensor">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+            </intent-filter>
+         </activity>
+         
+        <activity android:name="org.linphone.setup.RemoteProvisioningActivity"
+            android:theme="@style/NoTitle"
+            android:screenOrientation="nosensor">
+            <intent-filter>
+	     		<action android:name="android.intent.action.MAIN" />
+		  	</intent-filter>
+			 
+            <intent-filter>
+		        <data android:scheme="linphone-config" /> <!-- Change if needed -->
+		        <action android:name="android.intent.action.VIEW" />
+		        <category android:name="android.intent.category.BROWSABLE" />
+		        <category android:name="android.intent.category.DEFAULT" />
+     		</intent-filter>
+        </activity>
 
 	    <service android:name="org.linphone.LinphoneService"
 	        android:label="@string/service_name"
 	        android:stopWithTask="false"/>
-	        
+         
 		<receiver android:name="org.linphone.NetworkManager">
 			<intent-filter><action android:name="android.net.conn.CONNECTIVITY_CHANGE"></action></intent-filter>
 		</receiver>
 	
 	    <receiver android:name="org.linphone.BluetoothManager">
-			<intent-filter>
-			    <action android:name="android.bluetooth.device.action.ACL_CONNECTED"/>
-			    <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED"/>
-			    <action android:name="android.bluetooth.adapter.action.CONNECTION_STATE_CHANGED"/>
-		    </intent-filter>
 		</receiver>
 	
 		<receiver android:name="org.linphone.BootReceiver">
@@ -126,8 +144,10 @@
 		<receiver android:name="org.linphone.PhoneStateChangedReceiver">
 			<intent-filter><action android:name="android.intent.action.PHONE_STATE" /></intent-filter>
 		</receiver>
+		
 		<receiver android:name="KeepAliveHandler" >
         </receiver>
+        
 		<!-- Needed for push notification -->
 		<receiver android:name="org.linphone.gcm.GCMReceiver" android:permission="com.google.android.c2dm.permission.SEND" >
 		  <intent-filter>

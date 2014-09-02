@@ -19,10 +19,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 import org.linphone.LinphoneManager;
 import org.linphone.LinphonePreferences;
+import org.linphone.LinphonePreferences.AccountBuilder;
 import org.linphone.LinphoneSimpleListener.LinphoneOnRegistrationStateChangedListener;
 import org.linphone.R;
+import org.linphone.core.LinphoneAddress.TransportType;
 import org.linphone.core.LinphoneCore.RegistrationState;
 import org.linphone.core.LinphoneCoreException;
+import org.linphone.core.LinphoneProxyConfig;
 
 import android.app.Activity;
 import android.content.Context;
@@ -166,7 +169,8 @@ public class SetupActivity extends FragmentActivity implements OnClickListener {
 	}
 
 	private void launchEchoCancellerCalibration(boolean sendEcCalibrationResult) {
-		if (LinphoneManager.getLc().needsEchoCalibration() && mPrefs.isFirstLaunch()) {
+		boolean needsEchoCalibration = LinphoneManager.getLc().needsEchoCalibration();
+		if (needsEchoCalibration && mPrefs.isFirstLaunch()) {
 			EchoCancellerCalibrationFragment fragment = new EchoCancellerCalibrationFragment();
 			fragment.enableEcCalibrationResultSending(sendEcCalibrationResult);
 			changeFragment(fragment);
@@ -176,6 +180,9 @@ public class SetupActivity extends FragmentActivity implements OnClickListener {
 			next.setEnabled(false);
 			cancel.setEnabled(false);
 		} else {
+			if (mPrefs.isFirstLaunch()) {
+				mPrefs.setEchoCancellation(false);
+			}
 			success();
 		}		
 	}
@@ -195,7 +202,7 @@ public class SetupActivity extends FragmentActivity implements OnClickListener {
 	
 	
 	private LinphoneOnRegistrationStateChangedListener registrationListener = new LinphoneOnRegistrationStateChangedListener() {
-		public void onRegistrationStateChanged(RegistrationState state) {
+		public void onRegistrationStateChanged(LinphoneProxyConfig proxy, RegistrationState state, String message) {
 			if (state == RegistrationState.RegistrationOk) {
 				LinphoneManager.removeListener(registrationListener);
 				
@@ -284,30 +291,40 @@ public class SetupActivity extends FragmentActivity implements OnClickListener {
 		
 		boolean isMainAccountLinphoneDotOrg = domain.equals(getString(R.string.default_domain));
 		boolean useLinphoneDotOrgCustomPorts = getResources().getBoolean(R.bool.use_linphone_server_ports);
-		mPrefs.setNewAccountUsername(username);
-		mPrefs.setNewAccountDomain(domain);
-		mPrefs.setNewAccountPassword(password);
+		AccountBuilder builder = new AccountBuilder(LinphoneManager.getLc())
+		.setUsername(username)
+		.setDomain(domain)
+		.setPassword(password);
 		
 		if (isMainAccountLinphoneDotOrg && useLinphoneDotOrgCustomPorts) {
 			if (getResources().getBoolean(R.bool.disable_all_security_features_for_markets)) {
-				mPrefs.setNewAccountProxy(domain + ":5228");
-				mPrefs.setTransport(getString(R.string.pref_transport_tcp_key));
+				builder.setProxy(domain + ":5228")
+				.setTransport(TransportType.LinphoneTransportTcp);
 			}
 			else {
-				mPrefs.setNewAccountProxy(domain + ":5223");
-				mPrefs.setTransport(getString(R.string.pref_transport_tls_key));
+				builder.setProxy(domain + ":5223")
+				.setTransport(TransportType.LinphoneTransportTls);
 			}
 			
-			mPrefs.setNewAccountExpires("604800");
-			mPrefs.setNewAccountOutboundProxyEnabled(true);
+			builder.setExpires("604800")
+			.setOutboundProxyEnabled(true)
+			.setAvpfEnabled(true)
+			.setAvpfRRInterval(3)
+			.setQualityReportingCollector("sip:voip-metrics@sip.linphone.org")
+			.setQualityReportingEnabled(true)
+			.setQualityReportingInterval(180)
+			.setRealm("sip.linphone.org");
+			
+			
 			mPrefs.setStunServer(getString(R.string.default_stun));
 			mPrefs.setIceEnabled(true);
 			mPrefs.setPushNotificationEnabled(true);
 		} else {
 			String forcedProxy = getResources().getString(R.string.setup_forced_proxy);
 			if (!TextUtils.isEmpty(forcedProxy)) {
-				mPrefs.setNewAccountProxy(forcedProxy);
-				mPrefs.setNewAccountOutboundProxyEnabled(true);
+				builder.setProxy(forcedProxy)
+				.setOutboundProxyEnabled(true)
+				.setAvpfRRInterval(5);
 			}
 		}
 		
@@ -316,12 +333,12 @@ public class SetupActivity extends FragmentActivity implements OnClickListener {
 			String appId = getString(R.string.push_sender_id);
 			if (regId != null && mPrefs.isPushNotificationEnabled()) {
 				String contactInfos = "app-id=" + appId + ";pn-type=google;pn-tok=" + regId;
-				mPrefs.setNewAccountContactParameters(contactInfos);
+				builder.setContactParameters(contactInfos);
 			}
 		}
 		
 		try {
-			mPrefs.saveNewAccount();
+			builder.saveNewAccount();
 			accountCreated = true;
 		} catch (LinphoneCoreException e) {
 			e.printStackTrace();

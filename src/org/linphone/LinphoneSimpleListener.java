@@ -20,10 +20,13 @@ package org.linphone;
 
 import org.linphone.core.LinphoneAddress;
 import org.linphone.core.LinphoneCall;
+import org.linphone.core.LinphoneProxyConfig;
 import org.linphone.core.LinphoneCall.State;
 import org.linphone.core.LinphoneChatMessage;
+import org.linphone.core.LinphoneChatRoom;
 import org.linphone.core.LinphoneCore.GlobalState;
 import org.linphone.core.LinphoneCore.RegistrationState;
+import org.linphone.core.LinphoneCore.RemoteProvisioningState;
 
 import android.content.Context;
 import android.net.ConnectivityManager;
@@ -39,8 +42,8 @@ public interface LinphoneSimpleListener {
 		void tryingNewOutgoingCallButCannotGetCallParameters();
 		void tryingNewOutgoingCallButWrongDestinationAddress();
 		void tryingNewOutgoingCallButAlreadyInCall();
-		void onRegistrationStateChanged(RegistrationState state, String message);
 		void onDisplayStatus(String message);
+		void onRegistrationStateChanged(LinphoneProxyConfig proxy,RegistrationState state, String message);
 	}
 
 
@@ -66,7 +69,7 @@ public interface LinphoneSimpleListener {
 	}
 
 	public static interface LinphoneOnRegistrationStateChangedListener extends LinphoneSimpleListener {
-		void onRegistrationStateChanged(RegistrationState state);
+		void onRegistrationStateChanged(LinphoneProxyConfig proxy, RegistrationState state, String message);
 	}
 
 	public static interface ConnectivityChangedListener extends LinphoneSimpleListener {
@@ -75,5 +78,11 @@ public interface LinphoneSimpleListener {
 	
 	public static interface LinphoneOnDTMFReceivedListener extends LinphoneSimpleListener {
 		void onDTMFReceived(LinphoneCall call, int dtmf);
+	}
+	public static interface LinphoneOnComposingReceivedListener extends LinphoneSimpleListener {
+		void onComposingReceived(LinphoneChatRoom room);
+	}
+	public static interface LinphoneOnRemoteProvisioningListener extends LinphoneSimpleListener {
+		void onConfiguringStatus(RemoteProvisioningState state);
 	}
 }

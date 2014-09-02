@@ -24,7 +24,6 @@ import org.linphone.ui.AddressText;
 import org.linphone.ui.CallButton;
 import org.linphone.ui.EraseButton;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -133,19 +132,13 @@ public class DialerFragment extends Fragment {
 	}
 	
 	@Override
-	public void onAttach(Activity activity) {
-		super.onAttach(activity);
-		if (LinphoneActivity.isInstanciated()) {
-			LinphoneActivity.instance().updateDialerFragment(this);
-		}
-	}
-	
-	@Override
 	public void onResume() {
 		super.onResume();
+		
 		if (LinphoneActivity.isInstanciated()) {
 			LinphoneActivity.instance().selectMenu(FragmentsAvailable.DIALER);
 			LinphoneActivity.instance().updateDialerFragment(this);
+			LinphoneActivity.instance().showStatusBar();
 		}
 		
 		if (shouldEmptyAddressField) {
@@ -185,6 +178,16 @@ public class DialerFragment extends Fragment {
 	
 	public void enableDisableAddContact() {
 		mAddContact.setEnabled(LinphoneManager.getLc().getCallsNb() > 0 || !mAddress.getText().toString().equals(""));	
+	}
+	
+	public void displayTextInAddressBar(String numberOrSipAddress) {
+		shouldEmptyAddressField = false;
+		mAddress.setText(numberOrSipAddress);
+	}
+	
+	public void newOutgoingCall(String numberOrSipAddress) {
+		displayTextInAddressBar(numberOrSipAddress);
+		LinphoneManager.getInstance().newOutgoingCall(mAddress);
 	}
 	
 	public void newOutgoingCall(Intent intent) {

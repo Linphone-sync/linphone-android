@@ -21,7 +21,10 @@ package org.linphone;
 import static android.view.View.GONE;
 import static android.view.View.VISIBLE;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -31,6 +34,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import org.linphone.core.LinphoneAddress;
 import org.linphone.core.LinphoneCall;
@@ -69,7 +74,6 @@ public final class LinphoneUtils {
 
 	private LinphoneUtils(){}
 
-	private static boolean preventVolumeBarToDisplay = false;
 	//private static final String sipAddressRegExp = "^(sip:)?(\\+)?[a-z0-9]+([_\\.-][a-z0-9]+)*@([a-z0-9]+([\\.-][a-z0-9]+)*)+\\.[a-z]{2,}(:[0-9]{2,5})?$";
 	//private static final String strictSipAddressRegExp = "^sip:(\\+)?[a-z0-9]+([_\\.-][a-z0-9]+)*@([a-z0-9]+([\\.-][a-z0-9]+)*)+\\.[a-z]{2,}$";
 
@@ -80,6 +84,10 @@ public final class LinphoneUtils {
 		} catch (LinphoneCoreException e) {
 			return false;
 		}
+	}
+	
+	public static boolean isNumberAddress(String numberOrAddress) {
+		return numberOrAddress.matches("[-+]?\\d*\\.?\\d+");
 	}
 	
 	public static boolean isStrictSipAddress(String numberOrAddress) {
@@ -121,7 +129,7 @@ public final class LinphoneUtils {
 		} else if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
 			LinphoneManager.getInstance().adjustVolume(-1);
 		}
-		return preventVolumeBarToDisplay;
+		return true;
 	}
 
 
@@ -341,8 +349,29 @@ public final class LinphoneUtils {
 			e.printStackTrace();
 		}
 	}
-	
-	public static void collectLogs(String logTag, String email) {
+
+    public static boolean zipLogs(StringBuilder sb, String toZipFile){
+        boolean success = false;
+        try {
+            FileOutputStream zip = new FileOutputStream(toZipFile);
+
+            ZipOutputStream out = new ZipOutputStream(new BufferedOutputStream(zip));
+            ZipEntry entry = new ZipEntry("logs.txt");
+            out.putNextEntry(entry);
+
+            out.write(sb.toString().getBytes());
+
+            out.close();
+            success = true;
+
+        } catch (Exception e){
+            Log.e("Exception when trying to zip the logs: " + e.getMessage());
+        }
+
+        return success;
+    }
+
+	public static void collectLogs(Context context, String email) {
         BufferedReader br = null;
         Process p = null;
         StringBuilder sb = new StringBuilder();
@@ -356,16 +385,24 @@ public final class LinphoneUtils {
 	    		sb.append(line);
 	    		sb.append("\r\n");
 	    	}
-	    	
-	    	Intent i = new Intent(Intent.ACTION_SEND);
-	    	i.setType("message/rfc822");
-	    	i.putExtra(Intent.EXTRA_EMAIL, new String[]{email});
-	    	i.putExtra(Intent.EXTRA_SUBJECT, "Linphone Logs");
-	    	i.putExtra(Intent.EXTRA_TEXT, sb.toString());
-	    	try {
-	    	    LinphoneActivity.instance().startActivity(Intent.createChooser(i, "Send mail..."));
-	    	} catch (android.content.ActivityNotFoundException ex) {
-	    	}
+            String zipFilePath = context.getExternalFilesDir(null).getAbsolutePath() + "/logs.zip";
+            Log.i("Saving logs to " + zipFilePath);
+
+            if( zipLogs(sb, zipFilePath) ) {
+                Uri zipURI = Uri.parse("file://" + zipFilePath);
+                Intent i = new Intent(Intent.ACTION_SEND);
+                i.putExtra(Intent.EXTRA_EMAIL, new String[]{email});
+                i.putExtra(Intent.EXTRA_SUBJECT, "Linphone Logs");
+                i.putExtra(Intent.EXTRA_TEXT, "Linphone logs");
+                i.setType("application/zip");
+                i.putExtra(Intent.EXTRA_STREAM, zipURI);
+                try {
+                    context.startActivity(Intent.createChooser(i, "Send mail..."));
+                } catch (android.content.ActivityNotFoundException ex) {
+                    
+                }
+            }
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

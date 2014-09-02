@@ -47,8 +47,9 @@ public class ContactFragment extends Fragment implements OnClickListener {
 	private OnClickListener dialListener = new OnClickListener() {
 		@Override
 		public void onClick(View v) {
-			if (LinphoneActivity.isInstanciated())
+			if (LinphoneActivity.isInstanciated()) {
 				LinphoneActivity.instance().setAddresGoToDialerAndCall(v.getTag().toString(), contact.getName(), contact.getPhotoUri());
+			}
 		}
 	};
 	
@@ -171,9 +172,15 @@ public class ContactFragment extends Fragment implements OnClickListener {
 	@Override
 	public void onResume() {
 		super.onResume();
+		
 		if (LinphoneActivity.isInstanciated()) {
 			LinphoneActivity.instance().selectMenu(FragmentsAvailable.CONTACT);
+			
+			if (getResources().getBoolean(R.bool.show_statusbar_only_on_dialer)) {
+				LinphoneActivity.instance().hideStatusBar();
+			}
 		}
+		
 		contact.refresh(getActivity().getContentResolver());
 		if (contact.getName() == null || contact.getName().equals("")) {
 			//Contact has been deleted, return
