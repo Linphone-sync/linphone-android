@@ -1415,4 +1415,11 @@ public class LinphoneManager implements LinphoneCoreListener {
 			}
 		}
 	}
+	
+	@Override
+	public void fileTransferProgressIndication(LinphoneCore lc,
+			LinphoneChatMessage message, LinphoneContent content, int progress) {
+		// TODO Auto-generated method stub
+		
+	}
 }
