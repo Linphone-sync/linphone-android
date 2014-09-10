@@ -27,6 +27,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -39,6 +40,7 @@ import org.linphone.LinphoneSimpleListener.LinphoneOnAudioChangedListener;
 import org.linphone.LinphoneSimpleListener.LinphoneOnAudioChangedListener.AudioState;
 import org.linphone.LinphoneSimpleListener.LinphoneOnComposingReceivedListener;
 import org.linphone.LinphoneSimpleListener.LinphoneOnDTMFReceivedListener;
+import org.linphone.LinphoneSimpleListener.LinphoneOnFileTransferListener;
 import org.linphone.LinphoneSimpleListener.LinphoneOnMessageReceivedListener;
 import org.linphone.LinphoneSimpleListener.LinphoneOnRemoteProvisioningListener;
 import org.linphone.LinphoneSimpleListener.LinphoneServiceListener;
@@ -554,6 +556,12 @@ public class LinphoneManager implements LinphoneCoreListener {
 			BluetoothManager.getInstance().initBluetooth();
 		}
         resetCameraFromPreferences();
+        
+        if (mLc.getFileTransferServer() == null) {
+        	String url = mR.getString(R.string.default_file_transfer_server);
+        	Log.w("File transfer server wasn't set, let's use the default one: " + url);
+        	mLc.setFileTransferServer(url);
+        }
 	}
 
 	private void copyAssetsFromPackage() throws IOException {
@@ -1416,10 +1424,39 @@ public class LinphoneManager implements LinphoneCoreListener {
 		}
 	}
 	
+	private LinphoneOnFileTransferListener fileTransferListener;
+	public void setOnFileTransferListener(LinphoneOnFileTransferListener listener) {
+		fileTransferListener = listener;
+	}
+	
 	@Override
 	public void fileTransferProgressIndication(LinphoneCore lc,
 			LinphoneChatMessage message, LinphoneContent content, int progress) {
-		// TODO Auto-generated method stub
-		
+		if (fileTransferListener != null) {
+			fileTransferListener.onFileTransferProgressChanged(progress);
+		} else {
+			Log.w("No listener set for fileTransferProgressIndication callback!");
+		}
+	}
+	
+	@Override
+	public void fileTransferRecv(LinphoneCore lc, LinphoneChatMessage message,
+			LinphoneContent content, String buffer, int size) {
+		if (fileTransferListener != null) {
+			fileTransferListener.onFileDownloadDataReceived(message, content, buffer, size);
+		} else {
+			Log.w("No listener set for fileTransferRecv callback!");
+		}
+	}
+	
+	@Override
+	public int fileTransferSend(LinphoneCore lc, LinphoneChatMessage message,
+			LinphoneContent content, ByteBuffer buffer, int size) {
+		if (fileTransferListener != null) {
+			return fileTransferListener.onFileUploadDataNeeded(message, content, buffer, size);
+		} else {
+			Log.w("No listener set for fileTransferSend callback!");
+		}
+		return 0;
 	}
 }

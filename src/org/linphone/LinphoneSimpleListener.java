@@ -18,15 +18,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 package org.linphone;
 
+import java.nio.ByteBuffer;
+
 import org.linphone.core.LinphoneAddress;
 import org.linphone.core.LinphoneCall;
-import org.linphone.core.LinphoneProxyConfig;
 import org.linphone.core.LinphoneCall.State;
 import org.linphone.core.LinphoneChatMessage;
 import org.linphone.core.LinphoneChatRoom;
+import org.linphone.core.LinphoneContent;
 import org.linphone.core.LinphoneCore.GlobalState;
 import org.linphone.core.LinphoneCore.RegistrationState;
 import org.linphone.core.LinphoneCore.RemoteProvisioningState;
+import org.linphone.core.LinphoneProxyConfig;
 
 import android.content.Context;
 import android.net.ConnectivityManager;
@@ -79,10 +82,18 @@ public interface LinphoneSimpleListener {
 	public static interface LinphoneOnDTMFReceivedListener extends LinphoneSimpleListener {
 		void onDTMFReceived(LinphoneCall call, int dtmf);
 	}
+	
 	public static interface LinphoneOnComposingReceivedListener extends LinphoneSimpleListener {
 		void onComposingReceived(LinphoneChatRoom room);
 	}
+	
 	public static interface LinphoneOnRemoteProvisioningListener extends LinphoneSimpleListener {
 		void onConfiguringStatus(RemoteProvisioningState state);
+	}
+	
+	public static interface LinphoneOnFileTransferListener extends LinphoneSimpleListener {
+		void onFileTransferProgressChanged(int progress);
+		void onFileDownloadDataReceived(LinphoneChatMessage message, LinphoneContent content, String data, int size);
+		int onFileUploadDataNeeded(LinphoneChatMessage message, LinphoneContent content, ByteBuffer data, int size);
 	}
 }

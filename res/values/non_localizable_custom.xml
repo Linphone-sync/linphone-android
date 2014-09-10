@@ -11,6 +11,7 @@
 	<string name="default_stun">stun.linphone.org</string>
 	<bool name="override_domain_using_default_one">false</bool> <!-- Replace the domain for outgoing calls by the one above -->
 	<string name="wizard_url">https://www.linphone.org/wizard.php</string>
+	<string name="default_file_transfer_server">https://www.linphone.org:444/lft.php</string>
 
 	<!-- Interface settings -->
     <bool name="use_simple_history">true</bool>

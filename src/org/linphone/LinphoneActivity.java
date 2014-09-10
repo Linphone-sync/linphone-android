@@ -738,7 +738,7 @@ public class LinphoneActivity extends FragmentActivity implements
 	public void onMessageReceived(LinphoneAddress from, LinphoneChatMessage message, int id) {
 		ChatFragment chatFragment = ((ChatFragment) messageListenerFragment);
 		if (messageListenerFragment != null && messageListenerFragment.isVisible() && chatFragment.getSipUri().equals(from.asStringUriOnly())) {
-			chatFragment.onMessageReceived(id, from, message);
+			chatFragment.onMessageReceived(from, message, id);
 			getChatStorage().markMessageAsRead(id);
 		} else if (LinphoneService.isReady()) {
 			displayMissedChats(getChatStorage().getUnreadMessageCount());
