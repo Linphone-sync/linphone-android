@@ -475,4 +475,6 @@
 	<string name="remote_provisioning_failure">Failed to download or apply remote provisioning profile...</string>
 	<string name="remote_provisioning_again_title">Remote provisioning</string>
 	<string name="remote_provisioning_again_message">Do you want to change the provisioning URI ?</string>
+	
+	<string name="already_downloading_or_uploading">You are already download or uploading a file, please wait...</string>
 </resources>

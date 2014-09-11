@@ -35,7 +35,6 @@ import org.linphone.core.CallDirection;
 import org.linphone.core.LinphoneAddress;
 import org.linphone.core.LinphoneAuthInfo;
 import org.linphone.core.LinphoneCall;
-import org.linphone.core.LinphoneProxyConfig;
 import org.linphone.core.LinphoneCall.State;
 import org.linphone.core.LinphoneCallLog;
 import org.linphone.core.LinphoneCallLog.CallStatus;
@@ -45,6 +44,7 @@ import org.linphone.core.LinphoneCore.RegistrationState;
 import org.linphone.core.LinphoneCoreException;
 import org.linphone.core.LinphoneCoreFactory;
 import org.linphone.core.LinphoneFriend;
+import org.linphone.core.LinphoneProxyConfig;
 import org.linphone.mediastream.Log;
 import org.linphone.setup.RemoteProvisioningLoginActivity;
 import org.linphone.setup.SetupActivity;
@@ -57,7 +57,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.database.Cursor;
-import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -735,11 +734,10 @@ public class LinphoneActivity extends FragmentActivity implements
 	}
 
 	@Override
-	public void onMessageReceived(LinphoneAddress from, LinphoneChatMessage message, int id) {
+	public void onMessageReceived(LinphoneAddress from, LinphoneChatMessage message) {
 		ChatFragment chatFragment = ((ChatFragment) messageListenerFragment);
 		if (messageListenerFragment != null && messageListenerFragment.isVisible() && chatFragment.getSipUri().equals(from.asStringUriOnly())) {
-			chatFragment.onMessageReceived(from, message, id);
-			getChatStorage().markMessageAsRead(id);
+			chatFragment.onMessageReceived(from, message);
 		} else if (LinphoneService.isReady()) {
 			displayMissedChats(getChatStorage().getUnreadMessageCount());
 			if (messageListFragment != null && messageListFragment.isVisible()) {
@@ -750,24 +748,6 @@ public class LinphoneActivity extends FragmentActivity implements
 
 	public void updateMissedChatCount() {
 		displayMissedChats(getChatStorage().getUnreadMessageCount());
-	}
-
-	public int onMessageSent(String to, String message) {
-		getChatStorage().deleteDraft(to);
-		return getChatStorage().saveTextMessage("", to, message, System.currentTimeMillis());
-	}
-
-	public int onMessageSent(String to, Bitmap image, String imageURL) {
-		getChatStorage().deleteDraft(to);
-		return getChatStorage().saveImageMessage("", to, image, imageURL, System.currentTimeMillis());
-	}
-
-	public void onMessageStateChanged(String to, String message, int newState) {
-		getChatStorage().updateMessageStatus(to, message, newState);
-	}
-
-	public void onImageMessageStateChanged(String to, int id, int newState) {
-		getChatStorage().updateMessageStatus(to, id, newState);
 	}
 
 	public void onRegistrationStateChanged(LinphoneProxyConfig proxy, RegistrationState state, String message) {

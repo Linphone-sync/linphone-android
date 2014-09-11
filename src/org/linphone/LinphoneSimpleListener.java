@@ -68,7 +68,7 @@ public interface LinphoneSimpleListener {
 	}
 	
 	public static interface LinphoneOnMessageReceivedListener extends LinphoneSimpleListener {
-		void onMessageReceived(LinphoneAddress from, LinphoneChatMessage message, int id);
+		void onMessageReceived(LinphoneAddress from, LinphoneChatMessage message);
 	}
 
 	public static interface LinphoneOnRegistrationStateChangedListener extends LinphoneSimpleListener {
@@ -93,7 +93,7 @@ public interface LinphoneSimpleListener {
 	
 	public static interface LinphoneOnFileTransferListener extends LinphoneSimpleListener {
 		void onFileTransferProgressChanged(int progress);
-		void onFileDownloadDataReceived(LinphoneChatMessage message, LinphoneContent content, String data, int size);
+		void onFileDownloadDataReceived(LinphoneChatMessage message, LinphoneContent content, byte[] data, int size);
 		int onFileUploadDataNeeded(LinphoneChatMessage message, LinphoneContent content, ByteBuffer data, int size);
 	}
 }

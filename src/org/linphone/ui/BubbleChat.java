@@ -24,14 +24,10 @@ import java.util.Map.Entry;
 
 import org.linphone.R;
 import org.linphone.core.LinphoneChatMessage;
-import org.linphone.core.LinphoneChatMessage.State;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.Intent;
-import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.net.Uri;
 import android.text.Html;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
@@ -41,6 +37,7 @@ import android.text.style.ImageSpan;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -88,21 +85,17 @@ public class BubbleChat {
 	private RelativeLayout view;
 	private ImageView statusView;
 	private Button downloadOrShow;
-	private String imageUrl, textMessage;
-	private LinphoneChatMessage.State state;
-	private LinphoneChatMessage nativeMessage;
-	private int id;
+	private LinphoneChatMessage message;
+	private BubbleChatActionListener listener;
 	
-	public BubbleChat(final Context context, int ID, String message, Bitmap image, long time, boolean isIncoming, LinphoneChatMessage.State status, String url) {
+	public BubbleChat(Context context, ViewGroup parent, LinphoneChatMessage message, BubbleChatActionListener listener) {
+		this.message = message;
+		this.listener = listener;
 		view = new RelativeLayout(context);
-		imageUrl = url;
-		textMessage = message;
-		state = status;
-		id = ID;
 		
 		LayoutParams layoutParams = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
     	
-    	if (isIncoming) {
+    	if (!message.isOutgoing()) {
     		layoutParams.addRule(RelativeLayout.ALIGN_PARENT_LEFT);
     		view.setBackgroundResource(R.drawable.chat_bubble_incoming);
     	}
@@ -113,73 +106,101 @@ public class BubbleChat {
 
     	layoutParams.setMargins(10, 0, 10, 0);
     	
-    	view.setId(id);	
+    	view.setId(message.getStorageId());
     	view.setLayoutParams(layoutParams);
     	
     	Spanned text = null;
-    	if (message != null) {
+    	if (message.getText() != null) {
 	    	if (context.getResources().getBoolean(R.bool.emoticons_in_messages)) {
-	    		text = getSmiledText(context, getTextWithHttpLinks(message));
-	    		//text = getTextWithHttpLinks(message);
+	    		text = getSmiledText(context, getTextWithHttpLinks(message.getText()));
 	    	} else {
-	    		text = getTextWithHttpLinks(message);
+	    		text = getTextWithHttpLinks(message.getText());
 	    	}
     	}
     	
     	if (context.getResources().getBoolean(R.bool.display_messages_time_and_status)) {
     		LinearLayout layout;
 	    	if (context.getResources().getBoolean(R.bool.display_time_aside)) {
-		    	if (isIncoming) {
-		    		layout = (LinearLayout) LayoutInflater.from(context).inflate(R.layout.chat_bubble_alt_incoming, null);
+		    	if (!message.isOutgoing()) {
+		    		layout = (LinearLayout) LayoutInflater.from(context).inflate(R.layout.chat_bubble_alt_incoming, parent);
 		    	} else {
-		    		layout = (LinearLayout) LayoutInflater.from(context).inflate(R.layout.chat_bubble_alt_outgoing, null);
+		    		layout = (LinearLayout) LayoutInflater.from(context).inflate(R.layout.chat_bubble_alt_outgoing, parent);
 		    	}
 	    	} else {
-	    		if (isIncoming) {
-		    		layout = (LinearLayout) LayoutInflater.from(context).inflate(R.layout.chat_bubble_incoming, null);
+	    		if (!message.isOutgoing()) {
+		    		layout = (LinearLayout) LayoutInflater.from(context).inflate(R.layout.chat_bubble_incoming, parent);
 		    	} else {
-		    		layout = (LinearLayout) LayoutInflater.from(context).inflate(R.layout.chat_bubble_outgoing, null);
+		    		layout = (LinearLayout) LayoutInflater.from(context).inflate(R.layout.chat_bubble_outgoing, parent);
 		    	}
 	    	}
 	    	
 	    	TextView msgView = (TextView) layout.findViewById(R.id.message);
-	    	if (message != null && msgView != null) {
+	    	if (text != null && msgView != null) {
 		    	msgView.setText(text);
 		    	msgView.setMovementMethod(LinkMovementMethod.getInstance());
 	    	} else if (msgView != null) {
 	    		msgView.setVisibility(View.GONE);
 	    	}
 	    	
-	    	ImageView imageView = (ImageView) layout.findViewById(R.id.image);
-	    	if (image != null && imageView != null) {
-		    	imageView.setImageBitmap(image);
-	    	} else if (imageView != null) {
-	    		imageView.setVisibility(View.GONE);
+	    	//TODO
+	    	/*final ImageView imageView = (ImageView) layout.findViewById(R.id.image);
+	    	if (message.getFileTransferInformation() != null) {
+		    	if (image != null && imageView != null) {
+			    	imageView.setImageBitmap(image);
+		    	} else if (imageView != null) {
+		    		imageView.setVisibility(View.GONE);
+		    	}
+		    	if (imageView != null) {
+		    		imageView.setOnClickListener(new OnClickListener() {
+		    			@Override
+		    			public void onClick(View v) {
+		    				Intent intent = new Intent(Intent.ACTION_VIEW);
+		    				intent.setDataAndType(Uri.parse("file://" + imageUrl), "image/*");
+		    				BubbleChat.this.context.startActivity(intent);
+		    			}
+		    		});
+		    	}
 	    	}
-	    	if (imageView != null) {
-	    		imageView.setOnClickListener(new OnClickListener() {
-	    			@Override
-	    			public void onClick(View v) {
-	    				Intent intent = new Intent(Intent.ACTION_VIEW);
-	    				intent.setDataAndType(Uri.parse("file://" + imageUrl), "image/*");
-	    				context.startActivity(intent);
-	    			}
-	    		});
-	    	}
+	    	*/
 	    	
 	    	downloadOrShow = (Button) layout.findViewById(R.id.download);
-	    	if (downloadOrShow != null && image == null && message == null) {
+	    	if (downloadOrShow != null && message.getFileTransferInformation() != null) {
 	    		downloadOrShow.setVisibility(View.VISIBLE);
+	    		//TODO Condition to display download or show button
+	    		if (true) {
+		    		downloadOrShow.setText(context.getString(R.string.download_image));
+		    		downloadOrShow.setOnClickListener(new OnClickListener() {
+						@Override
+						public void onClick(View v) {
+							if (BubbleChat.this.listener != null) {
+								BubbleChat.this.listener.onDownloadButtonClick();
+							}
+						}
+					});
+	    		}  
+	    		//TODO
+	    		/*else {
+	    			downloadOrShow.setText(context.getString(R.string.show_image));
+		    		downloadOrShow.setOnClickListener(new OnClickListener() {
+						@Override
+						public void onClick(View v) {
+							Bitmap bm = BitmapFactory.decodeFile(url);
+							imageView.setImageBitmap(bm);
+							imageView.setVisibility(View.VISIBLE);
+							downloadOrShow.setVisibility(View.GONE);
+						}
+					});
+	    		}*/
 	    	}
 	    	
 	    	TextView timeView = (TextView) layout.findViewById(R.id.time);
-	    	timeView.setText(timestampToHumanDate(context, time));
+	    	timeView.setText(timestampToHumanDate(context, message.getTime()));
 	    	
 	    	statusView = (ImageView) layout.findViewById(R.id.status);
 	    	if (statusView != null) {
-	    		if (status == LinphoneChatMessage.State.Delivered) {
+	    		if (message.getStatus() == LinphoneChatMessage.State.Delivered) {
 	    			statusView.setImageResource(R.drawable.chat_message_delivered);
-	    		} else if (status == LinphoneChatMessage.State.NotDelivered) {
+	    		} else if (message.getStatus() == LinphoneChatMessage.State.NotDelivered) {
 	    			statusView.setImageResource(R.drawable.chat_message_not_delivered);
 	    		} else {
 	    			statusView.setImageResource(R.drawable.chat_message_inprogress);
@@ -189,7 +210,7 @@ public class BubbleChat {
 	    	view.addView(layout);
     	} else {
     		TextView messageView = new TextView(context);
-    		messageView.setId(id);
+    		messageView.setId(message.getStorageId());
         	messageView.setTextColor(Color.BLACK);
         	messageView.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
         	messageView.setText(text);
@@ -198,24 +219,6 @@ public class BubbleChat {
         	
         	view.addView(messageView);
     	}
-	}
-	
-	public void updateStatusView(LinphoneChatMessage.State status) {
-		state = status;
-		
-		if (statusView == null) {
-			return;
-		}
-		
-		if (status == LinphoneChatMessage.State.Delivered) {
-			statusView.setImageResource(R.drawable.chat_message_delivered);
-		} else if (status == LinphoneChatMessage.State.NotDelivered) {
-			statusView.setImageResource(R.drawable.chat_message_not_delivered);
-		} else {
-			statusView.setImageResource(R.drawable.chat_message_inprogress);
-		}
-		
-		view.invalidate();
 	}
 	
 	public View getView() {
@@ -289,44 +292,12 @@ public class BubbleChat {
 		
 		return Html.fromHtml(text);
 	}
-
-	public void setShowOrDownloadImageButtonListener(OnClickListener onClickListener) {
-		if (downloadOrShow != null) {
-			downloadOrShow.setOnClickListener(onClickListener);
-		}
-	}
-	
-	public void setShowOrDownloadText(String buttonName) {
-		if (downloadOrShow != null) {
-			downloadOrShow.setText(buttonName);
-		}
-	}
-
-	public void updateUrl(String newFileUrl) {
-		imageUrl = newFileUrl;
-	}
-	
-	public String getTextMessage() {
-		return textMessage;
-	}
-	
-	public String getImageUrl() {
-		return imageUrl;
-	}
-
-	public State getStatus() {
-		return state;
-	}
 	
 	public LinphoneChatMessage getNativeMessageObject() {
-		return nativeMessage;
+		return message;
 	}
 	
-	public void setNativeMessageObject(LinphoneChatMessage message) {
-		nativeMessage = message;
-	}
-	
-	public int getId() {
-		return id;
+	public interface BubbleChatActionListener {
+		void onDownloadButtonClick();
 	}
 }

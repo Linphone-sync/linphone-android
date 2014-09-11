@@ -749,15 +749,6 @@ public class LinphoneManager implements LinphoneCoreListener {
 		LinphoneAddress from = message.getFrom();
 
 		String textMessage = message.getText();
-		String url = message.getExternalBodyUrl();
-		int id = -1;
-		if (textMessage != null && textMessage.length() > 0) {
-			id = ChatStorage.getInstance().saveTextMessage(from.asStringUriOnly(), "", textMessage, message.getTime());
-		} else if (url != null && url.length() > 0) {
-			//Bitmap bm = ChatFragment.downloadImage(url);
-			id = ChatStorage.getInstance().saveImageMessage(from.asStringUriOnly(), "", null, message.getExternalBodyUrl(), message.getTime());
-		}
-
 		try {
 			LinphoneUtils.findUriPictureOfContactAndSetDisplayName(from, mServiceContext.getContentResolver());
 			if (!mServiceContext.getResources().getBoolean(R.bool.disable_chat__message_notification)) {
@@ -766,7 +757,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 		} catch (Exception e) { }
 
 		for (LinphoneSimpleListener listener : getSimpleListeners(LinphoneOnMessageReceivedListener.class)) {
-			((LinphoneOnMessageReceivedListener) listener).onMessageReceived(from, message, id);
+			((LinphoneOnMessageReceivedListener) listener).onMessageReceived(from, message);
 		}
 	}
 
@@ -1441,7 +1432,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 	
 	@Override
 	public void fileTransferRecv(LinphoneCore lc, LinphoneChatMessage message,
-			LinphoneContent content, String buffer, int size) {
+			LinphoneContent content, byte[] buffer, int size) {
 		if (fileTransferListener != null) {
 			fileTransferListener.onFileDownloadDataReceived(message, content, buffer, size);
 		} else {
