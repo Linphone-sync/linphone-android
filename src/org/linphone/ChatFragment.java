@@ -345,8 +345,6 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 			public void run() {
 				adapter.refreshHistory();
 				adapter.notifyDataSetChanged();
-				
-				scrollToEnd();
 			}
 		});
 	}
