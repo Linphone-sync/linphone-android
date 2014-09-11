@@ -44,7 +44,6 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.RelativeLayout.LayoutParams;
 import android.widget.TextView;
@@ -88,11 +87,10 @@ public class BubbleChat {
 	
 	private RelativeLayout view;
 	private ImageView statusView;
-	private Button downloadOrShow;
+	private Button download;
 	private LinphoneChatMessage message;
 	private Context context;
 	private BubbleChatActionListener listener;
-	private ProgressBar spinner;
 	private LinearLayout layout;
 	private ImageView imageView;
 	
@@ -141,7 +139,6 @@ public class BubbleChat {
 	    		layout = (LinearLayout) LayoutInflater.from(context).inflate(R.layout.chat_bubble_outgoing, parent);
 	    	}
     	}
-    	spinner = (ProgressBar) layout.findViewById(R.id.spinner);
     	
     	TextView msgView = (TextView) layout.findViewById(R.id.message);
     	if (text != null && msgView != null) {
@@ -152,34 +149,24 @@ public class BubbleChat {
     	}
     	
     	imageView = (ImageView) layout.findViewById(R.id.image);
-    	downloadOrShow = (Button) layout.findViewById(R.id.download);
-    	if (downloadOrShow != null && message.getFileTransferInformation() != null) {
+    	download = (Button) layout.findViewById(R.id.download);
+    	
+    	if (download != null && message.getFileTransferInformation() != null) {
 	    	final String imageName = message.getFileTransferInformation().getName();
-    		downloadOrShow.setVisibility(View.VISIBLE);
-    		
-    		if (!LinphoneUtils.isExistingFile(imageName)) {
-	    		downloadOrShow.setText(context.getString(R.string.download_image));
-	    		downloadOrShow.setOnClickListener(new OnClickListener() {
+	    	if (imageName != null && !LinphoneUtils.isExistingFile(imageName)) {
+	    		download.setVisibility(View.VISIBLE);
+	    		download.setText(context.getString(R.string.download_image));
+	    		download.setOnClickListener(new OnClickListener() {
 					@Override
 					public void onClick(View v) {
 						if (BubbleChat.this.listener != null) {
-							if (spinner != null) {
-								spinner.setVisibility(View.VISIBLE);
-							}
-							downloadOrShow.setVisibility(View.GONE);
-							BubbleChat.this.listener.onDownloadButtonClick(BubbleChat.this);
+							setDownloadInProgressLayout();
+							BubbleChat.this.listener.onDownloadButtonClick();
 						}
 					}
 				});
-    		}  
-    		else {
-    			downloadOrShow.setText(context.getString(R.string.show_image));
-	    		downloadOrShow.setOnClickListener(new OnClickListener() {
-					@Override
-					public void onClick(View v) {
-						displayImageIfPossible(imageName);
-					}
-				});
+    		} else {
+    			displayImageIfPossible(imageName);
     		}
     	}
     	
@@ -200,11 +187,9 @@ public class BubbleChat {
     	view.addView(layout);
 	}
 	
-	public void downloadFinished() {
-		if (spinner != null) {
-			spinner.setVisibility(View.GONE);
-		}
-		displayImageIfPossible(message.getFileTransferInformation().getName());
+	public void setDownloadInProgressLayout() {
+		download.setEnabled(false);
+		download.setText(BubbleChat.this.context.getString(R.string.downloading_image));
 	}
 	
 	private void displayImageIfPossible(final String imageName) {
@@ -212,7 +197,7 @@ public class BubbleChat {
 		if (bm != null) {
 			imageView.setImageBitmap(bm);
 			imageView.setVisibility(View.VISIBLE);
-			downloadOrShow.setVisibility(View.GONE);
+			download.setVisibility(View.GONE);
 			
 			if (imageView != null) {
 	    		imageView.setOnClickListener(new OnClickListener() {
@@ -303,11 +288,7 @@ public class BubbleChat {
 		return message;
 	}
 	
-	public ProgressBar getProgressBar() {
-		return spinner;
-	}
-	
 	public interface BubbleChatActionListener {
-		void onDownloadButtonClick(BubbleChat bubble);
+		void onDownloadButtonClick();
 	}
 }

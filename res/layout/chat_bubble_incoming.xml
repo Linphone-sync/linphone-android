@@ -25,16 +25,6 @@
         android:text="@string/download_image"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
-    
-    <ProgressBar 
-        android:id="@+id/spinner"
-        android:visibility="gone"
-        android:indeterminate="false"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:max="100"
-        android:progress="0"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
 
     <TextView 
         android:id="@+id/time"

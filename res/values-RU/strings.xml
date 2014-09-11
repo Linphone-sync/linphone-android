@@ -368,6 +368,7 @@
 	<string name="button_send_message">Послать</string>
 	<string name="button_send_picture">Рис.</string>
 	<string name="uploading_image">Загружаем&#8230;</string>
+	<string name="downloading_image">Downloading&#8230;</string>
 	
 	<string name="call_update_title">Запрошено обновление звонка</string>
 	<string name="call_update_desc">Ваш собеседник хотел бы добавить видео к звонку.</string>
@@ -435,7 +436,7 @@
 	<string name="pref_upnp_enable">Enable UPNP</string>
 	<string name="pref_manage">Manage</string>
 	
-	<string name="wait">Please wait...</string>
+	<string name="wait">Please wait&#8230;</string>
 	<string name="importing_messages">Updating messages database</string>
 	<string name="default_account_flag">Default account</string>
 	
@@ -448,14 +449,14 @@
 	<string name="zrtp_deny">Deny</string>
 	<string name="zrtp_help">You should only accept if you have the same code (see above) as your correspondent</string>
 	
-	<string name="remote_composing">Remote is writing...</string>
+	<string name="remote_composing">Remote is writing&#8230;</string>
 	<string name="unread_messages">%i unread messages</string>
 	
 	<string name="retry">Retry</string>
 	
-	<string name="remote_provisioning_failure">Failed to download or apply remote provisioning profile...</string>
+	<string name="remote_provisioning_failure">Failed to download or apply remote provisioning profile&#8230;</string>
 	<string name="remote_provisioning_again_title">Remote provisioning</string>
 	<string name="remote_provisioning_again_message">Do you want to change the provisioning URI ?</string>
 	
-	<string name="already_downloading_or_uploading">You are already download or uploading a file, please wait...</string>
+	<string name="already_downloading_or_uploading">You are already download or uploading a file, please wait&#8230;</string>
 </resources>

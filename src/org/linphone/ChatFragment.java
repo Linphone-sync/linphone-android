@@ -92,10 +92,10 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 	private AvatarWithShadow contactPicture;
 	private RelativeLayout uploadLayout, textLayout;
 	private ListView messagesList;
-	private ProgressBar uplaodProgressBar;
+	private ProgressBar uploadProgressBar;
 	private TextWatcher textWatcher;
 	private Handler mHandler;
-	private BubbleChat currentDownloadBubble;
+	private TextView progressBarText;
 	
 	@Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -126,7 +126,8 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
         uploadLayout = (RelativeLayout) view.findViewById(R.id.uploadLayout);
         textLayout = (RelativeLayout) view.findViewById(R.id.messageLayout);
         
-        uplaodProgressBar = (ProgressBar) view.findViewById(R.id.progressbar);
+        uploadProgressBar = (ProgressBar) view.findViewById(R.id.progressbar);
+        progressBarText = (TextView) view.findViewById(R.id.progressBarText);
         sendImage = (TextView) view.findViewById(R.id.sendPicture);
         if (!getResources().getBoolean(R.bool.disable_chat_send_file)) {
 	        registerForContextMenu(sendImage);
@@ -161,7 +162,6 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 		LinphoneCore lc = LinphoneManager.getLcIfManagerNotDestroyedOrNull();
 		if (lc != null) {
 			chatRoom = lc.getOrCreateChatRoom(sipUri);
-			chatRoom.markAsRead();
 		}
 		
 		return view;
@@ -252,23 +252,11 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 		mHandler.post(new Runnable() {
 			@Override
 			public void run() {
-				ProgressBar bar = null;
-				
-				if (isUploading && uplaodProgressBar != null) {
-					bar = uplaodProgressBar;
-				} else if (isDownloading && currentDownloadBubble != null) {
-					bar = currentDownloadBubble.getProgressBar();
-				}
-				
-				if (bar != null) {
-					bar.setProgress(progress);
-					if (progress == 100) {
-						if (isUploading) {
-							uploadLayout.setVisibility(View.GONE);
-							textLayout.setVisibility(View.VISIBLE);
-						}
-						isUploading = isDownloading = false;
-					}
+				uploadProgressBar.setProgress(progress);
+				if (progress == 100) {
+					uploadLayout.setVisibility(View.GONE);
+					textLayout.setVisibility(View.VISIBLE);
+					isUploading = isDownloading = false;
 				}
 			}
 		});
@@ -284,6 +272,7 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 			if (bm != null) {
 				LinphoneUtils.saveImageOnDevice(LinphoneActivity.instance(), content.getName(), bm, msg.getStorageId());
 			}
+			
 			try {
 				downloadData.close();
 			} catch (IOException e) {
@@ -291,15 +280,14 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 			}
 			downloadData = null;
 			
-			if (currentDownloadBubble != null) {
-				mHandler.post(new Runnable() {
-					@Override
-					public void run() {
-						currentDownloadBubble.downloadFinished();
-						currentDownloadBubble = null;
-					}
-				});
-			}
+			mHandler.post(new Runnable() {
+				@Override
+				public void run() {
+					adapter.refreshHistory();
+					adapter.notifyDataSetChanged();
+					scrollToEnd();
+				}
+			});
 		} else if (size != 0) {
 			// Append data to previously received data
 			if (downloadData != null) {
@@ -390,17 +378,12 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 	public void displayMessages() {
 		adapter = new ChatMessageAdapter(this.getActivity(), chatRoom.getHistory());
 		messagesList.setAdapter(adapter);  
+		chatRoom.markAsRead();
 	}
 
 	public void changeDisplayedChat(String newSipUri, String displayName, String pictureUri) {
 		sipUri = newSipUri;
-		if (LinphoneActivity.isInstanciated()) {
-			String draft = LinphoneActivity.instance().getChatStorage().getDraft(sipUri);
-			if (draft == null)
-				draft = "";
-			message.setText(draft);
-		}
-
+		chatRoom = LinphoneManager.getLcIfManagerNotDestroyedOrNull().getOrCreateChatRoom(sipUri);
 		displayChatHeader(displayName, pictureUri);
 		displayMessages();
 	}
@@ -431,7 +414,24 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 		currentFileTransferMessage = message;
 		downloadData = new ByteArrayOutputStream();
 		isDownloading = true;
-		message.startFileDownload(this);
+		
+		uploadLayout.setVisibility(View.VISIBLE);
+		progressBarText.setText(getString(R.string.downloading_image));
+		textLayout.setVisibility(View.GONE);
+		
+		message.startFileDownload(new StateListener() {
+			@Override
+			public void onLinphoneChatMessageStateChanged(LinphoneChatMessage msg, State state) {
+				if (state == State.FileTransferError) {
+					mHandler.post(new Runnable() {
+						@Override
+						public void run() {
+							LinphoneActivity.instance().displayCustomToast(getString(R.string.error), Toast.LENGTH_SHORT);
+						}
+					});
+				}
+			}
+		});
 	}
 	
 	private LinphoneChatMessage createUploadImageMessage(Bitmap bm) {
@@ -451,8 +451,7 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 		}
 		uploadData = new ByteArrayInputStream(data);
         
-		//FIXME replace cotcot by hash
-        LinphoneContent content = new LinphoneContentImpl("cotcot.jpg", "image", "jpeg", data, null, 0);
+        LinphoneContent content = new LinphoneContentImpl(uploadData.hashCode() + "-" + System.currentTimeMillis() + ".jpg", "image", "jpeg", data, null, 0);
         return chatRoom.createFileTransferMessage(content);
 	}
 	
@@ -468,6 +467,7 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 			currentFileTransferMessage = message;
 			isUploading = true;
 			uploadLayout.setVisibility(View.VISIBLE);
+			progressBarText.setText(getString(R.string.uploading_image));
 			textLayout.setVisibility(View.GONE);
 		}
 	}
@@ -640,11 +640,15 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 			final LinphoneChatMessage msg = history[position];
 			BubbleChat bubble = new BubbleChat(context, null, msg, new BubbleChatActionListener() {
 				@Override
-				public void onDownloadButtonClick(BubbleChat bubble) {
-					currentDownloadBubble = bubble;
+				public void onDownloadButtonClick() {
 					downloadImage(msg);
 				}
 			});
+			
+			if (currentFileTransferMessage == msg) {
+				bubble.setDownloadInProgressLayout();
+			}
+			
 			View view = bubble.getView();
 			registerForContextMenu(view);
 			layout.addView(view);

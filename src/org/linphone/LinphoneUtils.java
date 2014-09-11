@@ -405,13 +405,16 @@ public final class LinphoneUtils {
                     
                 }
             }
-
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
 	
 	public static boolean isExistingFile(String name) {
+		if (name == null) {
+			return false;
+		}
+		
 		String path = Environment.getExternalStorageDirectory().toString();
 		if (!path.endsWith("/"))
 			path += "/";
@@ -420,11 +423,43 @@ public final class LinphoneUtils {
 		return file.exists();
 	}
 	
+	private  static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
+	    int height = options.outHeight;
+	    int width = options.outWidth;
+	    int inSampleSize = 1;
+	
+	    if (height > reqHeight || width > reqWidth) {
+	        int halfHeight = height / 2;
+	        int halfWidth = width / 2;
+
+	        while ((halfHeight / inSampleSize) > reqHeight && (halfWidth / inSampleSize) > reqWidth) {
+	            inSampleSize *= 2;
+	        }
+	    }
+	
+	    return inSampleSize;
+	}
+	
 	public static Bitmap readBitmapFromFile(String name) {
-		return BitmapFactory.decodeFile(getBitmapPathFromFile(name));
+		if (name == null) {
+			return null;
+		}
+		
+		BitmapFactory.Options options = new BitmapFactory.Options();
+	    options.inJustDecodeBounds = true;
+	    BitmapFactory.decodeFile(getBitmapPathFromFile(name), options);
+
+	    options.inSampleSize = calculateInSampleSize(options, 200, 200);
+
+	    options.inJustDecodeBounds = false;
+	    return BitmapFactory.decodeFile(getBitmapPathFromFile(name), options);
 	}
 	
 	public static String getBitmapPathFromFile(String name) {
+		if (name == null) {
+			return null;
+		}
+		
 		String path = Environment.getExternalStorageDirectory().toString();
 		if (!path.endsWith("/"))
 			path += "/";
