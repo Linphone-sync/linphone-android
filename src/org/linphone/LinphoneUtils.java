@@ -23,11 +23,12 @@ import static android.view.View.VISIBLE;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -58,6 +59,8 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.telephony.TelephonyManager;
 import android.util.TypedValue;
 import android.view.KeyEvent;
@@ -406,6 +409,53 @@ public final class LinphoneUtils {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public static boolean isExistingFile(String name) {
+		String path = Environment.getExternalStorageDirectory().toString();
+		if (!path.endsWith("/"))
+			path += "/";
+		path += "Pictures/";
+		File file = new File(path, name);
+		return file.exists();
+	}
+	
+	public static Bitmap readBitmapFromFile(String name) {
+		return BitmapFactory.decodeFile(getBitmapPathFromFile(name));
+	}
+	
+	public static String getBitmapPathFromFile(String name) {
+		String path = Environment.getExternalStorageDirectory().toString();
+		if (!path.endsWith("/"))
+			path += "/";
+		path += "Pictures/";
+		File file = new File(path, name);
+		return file.getAbsolutePath();
+	}
+	
+	public static String saveImageOnDevice(Context context, String name, Bitmap bm, int id) {
+		try {
+			String path = Environment.getExternalStorageDirectory().toString();
+			if (!path.endsWith("/"))
+				path += "/";
+			path += "Pictures/";
+			File directory = new File(path);
+			directory.mkdirs();
+			File file = new File(path, name);
+
+			OutputStream fOut = null;
+			fOut = new FileOutputStream(file);
+
+			bm.compress(Bitmap.CompressFormat.JPEG, 100, fOut);
+			fOut.flush();
+			fOut.close();
+
+			MediaStore.Images.Media.insertImage(context.getContentResolver(), file.getAbsolutePath(), file.getName(), file.getName());
+			return file.getAbsolutePath();
+		} catch (Exception e) {
+			Log.e(e);
+		}
+		return null;
 	}
 }
 

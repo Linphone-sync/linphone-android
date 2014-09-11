@@ -22,12 +22,16 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
+import org.linphone.LinphoneUtils;
 import org.linphone.R;
 import org.linphone.core.LinphoneChatMessage;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.net.Uri;
 import android.text.Html;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
@@ -86,10 +90,12 @@ public class BubbleChat {
 	private ImageView statusView;
 	private Button downloadOrShow;
 	private LinphoneChatMessage message;
+	private Context context;
 	private BubbleChatActionListener listener;
 	
 	public BubbleChat(Context context, ViewGroup parent, LinphoneChatMessage message, BubbleChatActionListener listener) {
 		this.message = message;
+		this.context = context;
 		this.listener = listener;
 		view = new RelativeLayout(context);
 		
@@ -142,32 +148,13 @@ public class BubbleChat {
 	    		msgView.setVisibility(View.GONE);
 	    	}
 	    	
-	    	//TODO
-	    	/*final ImageView imageView = (ImageView) layout.findViewById(R.id.image);
-	    	if (message.getFileTransferInformation() != null) {
-		    	if (image != null && imageView != null) {
-			    	imageView.setImageBitmap(image);
-		    	} else if (imageView != null) {
-		    		imageView.setVisibility(View.GONE);
-		    	}
-		    	if (imageView != null) {
-		    		imageView.setOnClickListener(new OnClickListener() {
-		    			@Override
-		    			public void onClick(View v) {
-		    				Intent intent = new Intent(Intent.ACTION_VIEW);
-		    				intent.setDataAndType(Uri.parse("file://" + imageUrl), "image/*");
-		    				BubbleChat.this.context.startActivity(intent);
-		    			}
-		    		});
-		    	}
-	    	}
-	    	*/
-	    	
+	    	final ImageView imageView = (ImageView) layout.findViewById(R.id.image);
 	    	downloadOrShow = (Button) layout.findViewById(R.id.download);
 	    	if (downloadOrShow != null && message.getFileTransferInformation() != null) {
+		    	final String imageName = message.getFileTransferInformation().getName();
 	    		downloadOrShow.setVisibility(View.VISIBLE);
-	    		//TODO Condition to display download or show button
-	    		if (true) {
+	    		
+	    		if (!LinphoneUtils.isExistingFile(imageName)) {
 		    		downloadOrShow.setText(context.getString(R.string.download_image));
 		    		downloadOrShow.setOnClickListener(new OnClickListener() {
 						@Override
@@ -178,19 +165,31 @@ public class BubbleChat {
 						}
 					});
 	    		}  
-	    		//TODO
-	    		/*else {
+	    		else {
 	    			downloadOrShow.setText(context.getString(R.string.show_image));
 		    		downloadOrShow.setOnClickListener(new OnClickListener() {
 						@Override
 						public void onClick(View v) {
-							Bitmap bm = BitmapFactory.decodeFile(url);
-							imageView.setImageBitmap(bm);
-							imageView.setVisibility(View.VISIBLE);
-							downloadOrShow.setVisibility(View.GONE);
+							Bitmap bm = LinphoneUtils.readBitmapFromFile(imageName);
+							if (bm != null) {
+								imageView.setImageBitmap(bm);
+								imageView.setVisibility(View.VISIBLE);
+								downloadOrShow.setVisibility(View.GONE);
+								
+								if (imageView != null) {
+						    		imageView.setOnClickListener(new OnClickListener() {
+						    			@Override
+						    			public void onClick(View v) {
+						    				Intent intent = new Intent(Intent.ACTION_VIEW);
+						    				intent.setDataAndType(Uri.parse("file://" + LinphoneUtils.getBitmapPathFromFile(imageName)), "image/*");
+						    				BubbleChat.this.context.startActivity(intent);
+						    			}
+						    		});
+						    	}
+							}
 						}
 					});
-	    		}*/
+	    		}
 	    	}
 	    	
 	    	TextView timeView = (TextView) layout.findViewById(R.id.time);

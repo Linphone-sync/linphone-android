@@ -3,9 +3,7 @@ package org.linphone;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -250,7 +248,6 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 
 	@Override
 	public void onFileTransferProgressChanged(final int progress) {
-		Log.e("### Progress is " + progress);
 		mHandler.post(new Runnable() {
 			@Override
 			public void run() {
@@ -278,16 +275,13 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 
 	@Override
 	public void onFileDownloadDataReceived(LinphoneChatMessage msg, LinphoneContent content, byte[] data, int size) {
-		Log.e("### Download data received " + size + ", currently downloaded " + downloadData.size() + " on an expected total of " + content.getExpectedSize());
 		if (size == 0 && downloadData != null && downloadData.size() == content.getExpectedSize()) {
-			Log.e("### Download finished");
 			// Download finished, save the picture
 			isDownloading = false;
 			ByteArrayInputStream bis = new ByteArrayInputStream(downloadData.toByteArray());
 			Bitmap bm = BitmapFactory.decodeStream(bis);
 			if (bm != null) {
-				Log.e("### Bitmap is okay, save it");
-				/*String localPath = */saveImageOnDevice(content.getName(), bm, msg.getStorageId());
+				LinphoneUtils.saveImageOnDevice(LinphoneActivity.instance(), content.getName(), bm, msg.getStorageId());
 			}
 			try {
 				downloadData.close();
@@ -295,9 +289,7 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 				Log.e(e);
 			}
 			downloadData = null;
-			//TODO
 		} else if (size != 0) {
-			Log.e("### Download in progress");
 			// Append data to previously received data
 			if (downloadData != null) {
 				try {
@@ -327,7 +319,6 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 				Log.e(e);
 			}
 			uploadData = null;
-			//TODO
 		}
 		return bytesWritten;
 	}
@@ -468,31 +459,6 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 			uploadLayout.setVisibility(View.VISIBLE);
 			textLayout.setVisibility(View.GONE);
 		}
-	}
-	
-	private String saveImageOnDevice(String name, Bitmap bm, int id) {
-		try {
-			String path = Environment.getExternalStorageDirectory().toString();
-			if (!path.endsWith("/"))
-				path += "/";
-			path += "Pictures/";
-			File directory = new File(path);
-			directory.mkdirs();
-			File file = new File(path, name);
-
-			OutputStream fOut = null;
-			fOut = new FileOutputStream(file);
-
-			bm.compress(Bitmap.CompressFormat.JPEG, 100, fOut);
-			fOut.flush();
-			fOut.close();
-
-			MediaStore.Images.Media.insertImage(getActivity().getContentResolver(), file.getAbsolutePath(), file.getName(), file.getName());
-			return file.getAbsolutePath();
-		} catch (Exception e) {
-			Log.e(e);
-		}
-		return null;
 	}
 
 	private void startImagePicker() {
