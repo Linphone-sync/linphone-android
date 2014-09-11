@@ -92,9 +92,10 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 	private AvatarWithShadow contactPicture;
 	private RelativeLayout uploadLayout, textLayout;
 	private ListView messagesList;
-	private ProgressBar uplaodProgressBar, downloadProgressBar;
+	private ProgressBar uplaodProgressBar;
 	private TextWatcher textWatcher;
 	private Handler mHandler;
+	private BubbleChat currentDownloadBubble;
 	
 	@Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -255,8 +256,8 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 				
 				if (isUploading && uplaodProgressBar != null) {
 					bar = uplaodProgressBar;
-				} else if (isDownloading && downloadProgressBar != null) {
-					bar = downloadProgressBar;
+				} else if (isDownloading && currentDownloadBubble != null) {
+					bar = currentDownloadBubble.getProgressBar();
 				}
 				
 				if (bar != null) {
@@ -289,6 +290,16 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 				Log.e(e);
 			}
 			downloadData = null;
+			
+			if (currentDownloadBubble != null) {
+				mHandler.post(new Runnable() {
+					@Override
+					public void run() {
+						currentDownloadBubble.downloadFinished();
+						currentDownloadBubble = null;
+					}
+				});
+			}
 		} else if (size != 0) {
 			// Append data to previously received data
 			if (downloadData != null) {
@@ -417,7 +428,7 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 			return;
 		}
 		
-		Log.e("### Msg id has image " + message.getStorageId());
+		currentFileTransferMessage = message;
 		downloadData = new ByteArrayOutputStream();
 		isDownloading = true;
 		message.startFileDownload(this);
@@ -629,7 +640,8 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 			final LinphoneChatMessage msg = history[position];
 			BubbleChat bubble = new BubbleChat(context, null, msg, new BubbleChatActionListener() {
 				@Override
-				public void onDownloadButtonClick() {
+				public void onDownloadButtonClick(BubbleChat bubble) {
+					currentDownloadBubble = bubble;
 					downloadImage(msg);
 				}
 			});
