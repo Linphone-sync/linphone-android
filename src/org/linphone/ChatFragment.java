@@ -1,10 +1,8 @@
 package org.linphone;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -81,8 +79,6 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 	
 	private String sipUri;
 	private boolean isDownloading, isUploading;
-	private ByteArrayOutputStream downloadData;
-	private ByteArrayInputStream uploadData;
 	private LinphoneChatMessage currentFileTransferMessage;
 	private ChatMessageAdapter adapter;
 	
@@ -169,9 +165,6 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 		if (lc != null) {
 			chatRoom = lc.getOrCreateChatRoom(sipUri);
 		}
-		if (LinphoneManager.isInstanciated()) {
-			LinphoneManager.getInstance().setOnFileTransferListener(this);
-		}
 
 		// Force hide keyboard
 		if (LinphoneActivity.isInstanciated()) {
@@ -189,14 +182,6 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 	}
 	
 	@Override
-	public void onStop() {
-		if (LinphoneManager.isInstanciated()) {
-			LinphoneManager.getInstance().setOnFileTransferListener(null);
-		}
-		super.onStop();
-	}
-	
-	@Override
 	public void onPause() {
 		message.removeTextChangedListener(textWatcher);
 	
@@ -204,6 +189,7 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 
 		if (LinphoneManager.isInstanciated()) {
 			LinphoneManager.getInstance().setOnComposingReceivedListener(null);
+			LinphoneManager.getInstance().setOnFileTransferListener(null);
 		}
 		removeVirtualKeyboardVisiblityListener();
 
@@ -230,6 +216,17 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 
 			if (getResources().getBoolean(R.bool.show_statusbar_only_on_dialer)) {
 				LinphoneActivity.instance().hideStatusBar();
+			}
+		}
+		
+		if (isUploading || isDownloading) {
+			int progress = LinphoneManager.getInstance().getLastFileTransferProgress();
+			uploadProgressBar.setProgress(progress);
+			
+			if (progress == 100) {
+				isUploading = isDownloading = false;
+				uploadLayout.setVisibility(View.GONE);
+				textLayout.setVisibility(View.VISIBLE);
 			}
 		}
 
@@ -280,72 +277,30 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 				if (progress == 100) {
 					uploadLayout.setVisibility(View.GONE);
 					textLayout.setVisibility(View.VISIBLE);
-					isUploading = isDownloading = false;
 				}
 			}
 		});
 	}
 
 	@Override
-	public void onFileDownloadDataReceived(LinphoneChatMessage msg, LinphoneContent content, byte[] data, int size) {
-		if (size == 0 && downloadData != null && downloadData.size() == content.getExpectedSize()) {
-			// Download finished, save the picture
-			isDownloading = false;
-			ByteArrayInputStream bis = new ByteArrayInputStream(downloadData.toByteArray());
-			Bitmap bm = BitmapFactory.decodeStream(bis);
-			if (bm != null) {
-				LinphoneUtils.saveImageOnDevice(LinphoneActivity.instance(), content.getName(), bm);
-			}
-			
-			try {
-				downloadData.close();
-			} catch (IOException e) {
-				Log.e(e);
-			}
-			downloadData = null;
-			
-			mHandler.post(new Runnable() {
-				@Override
-				public void run() {
-					if (adapter != null) {
-						adapter.refreshHistory();
-						adapter.notifyDataSetChanged();
-						scrollToEnd();
-					}
-				}
-			});
-		} else if (size != 0) {
-			// Append data to previously received data
-			if (downloadData != null) {
-				try {
-					downloadData.write(data);
-				} catch (IOException e) {
-					Log.e(e);
+	public void onFileDownloadFinished(LinphoneChatMessage msg, LinphoneContent content) {
+		isDownloading = false;
+		
+		mHandler.post(new Runnable() {
+			@Override
+			public void run() {
+				if (adapter != null) {
+					adapter.refreshHistory();
+					adapter.notifyDataSetChanged();
+					scrollToEnd();
 				}
 			}
-		}
+		});
 	}
 
 	@Override
-	public int onFileUploadDataNeeded(LinphoneChatMessage message, LinphoneContent content, ByteBuffer data, int size) {
-		if (uploadData != null && uploadData.available() < size) {
-			Log.w("Asking for more bytes than remaining...");
-			size = uploadData.available();
-		}
-		byte[] buffer = new byte[size];
-		int bytesWritten = uploadData.read(buffer, 0, size);
-		data.put(buffer);
-		buffer = null;
-
-		if (uploadData.available() == 0) { // Upload finished
-			try {
-				uploadData.close();
-			} catch (IOException e) {
-				Log.e(e);
-			}
-			uploadData = null;
-		}
-		return bytesWritten;
+	public void onFileUploadFinished(LinphoneChatMessage message, LinphoneContent content) {
+		isUploading = false;
 	}
 
 	@Override
@@ -469,14 +424,14 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 		}
 		
 		currentFileTransferMessage = message;
-		downloadData = new ByteArrayOutputStream();
 		isDownloading = true;
 
 		uploadProgressBar.setProgress(0);
 		uploadLayout.setVisibility(View.VISIBLE);
 		progressBarText.setText(getString(R.string.downloading_image));
 		textLayout.setVisibility(View.GONE);
-		
+
+		LinphoneManager.getInstance().setupFileDownload();
 		message.startFileDownload(new StateListener() {
 			@Override
 			public void onLinphoneChatMessageStateChanged(LinphoneChatMessage msg, State state) {
@@ -507,9 +462,9 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 		} catch (IOException e) {
 			Log.e(e);
 		}
-		uploadData = new ByteArrayInputStream(data);
-        
-        LinphoneContent content = new LinphoneContentImpl(uploadData.hashCode() + "-" + System.currentTimeMillis() + ".jpg", "image", "jpeg", data, null, 0);
+
+		LinphoneManager.getInstance().setupFileUpload(data);
+        LinphoneContent content = new LinphoneContentImpl(bm.hashCode() + "-" + System.currentTimeMillis() + ".jpg", "image", "jpeg", data, null, 0);
         return chatRoom.createFileTransferMessage(content);
 	}
 	

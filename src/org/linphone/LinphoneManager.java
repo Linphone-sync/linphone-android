@@ -22,6 +22,8 @@ import static android.media.AudioManager.MODE_RINGTONE;
 import static android.media.AudioManager.STREAM_RING;
 import static android.media.AudioManager.STREAM_VOICE_CALL;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -90,6 +92,8 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -1419,35 +1423,92 @@ public class LinphoneManager implements LinphoneCoreListener {
 	public void setOnFileTransferListener(LinphoneOnFileTransferListener listener) {
 		fileTransferListener = listener;
 	}
+
+	private ByteArrayOutputStream downloadData;
+	public void setupFileDownload() {
+		downloadData = new ByteArrayOutputStream();
+	}
+
+	private ByteArrayInputStream uploadData;
+	public void setupFileUpload(byte[] data) {
+		uploadData = new ByteArrayInputStream(data);
+	}
+	
+	private int lastFileTransferProgress;
+	public int getLastFileTransferProgress() {
+		return lastFileTransferProgress;
+	}
 	
 	@Override
-	public void fileTransferProgressIndication(LinphoneCore lc,
-			LinphoneChatMessage message, LinphoneContent content, int progress) {
+	public void fileTransferProgressIndication(LinphoneCore lc, LinphoneChatMessage message, LinphoneContent content, int progress) {
+		lastFileTransferProgress = progress;
 		if (fileTransferListener != null) {
 			fileTransferListener.onFileTransferProgressChanged(progress);
 		} else {
-			Log.w("No listener set for fileTransferProgressIndication callback!");
+			Log.w("No LinphoneOnFileTransferListener listener set.");
 		}
 	}
 	
 	@Override
-	public void fileTransferRecv(LinphoneCore lc, LinphoneChatMessage message,
-			LinphoneContent content, byte[] buffer, int size) {
-		if (fileTransferListener != null) {
-			fileTransferListener.onFileDownloadDataReceived(message, content, buffer, size);
-		} else {
-			Log.w("No listener set for fileTransferRecv callback!");
+	public void fileTransferRecv(LinphoneCore lc, LinphoneChatMessage message, LinphoneContent content, byte[] data, int size) {
+		if (size == 0 && downloadData != null && downloadData.size() == content.getExpectedSize()) {
+			// Download finished, save the picture
+			ByteArrayInputStream bis = new ByteArrayInputStream(downloadData.toByteArray());
+			Bitmap bm = BitmapFactory.decodeStream(bis);
+			if (bm != null) {
+				LinphoneUtils.saveImageOnDevice(getContext(), content.getName(), bm);
+			}
+			
+			try {
+				downloadData.close();
+			} catch (IOException e) {
+				Log.e(e);
+			}
+			downloadData = null;
+			
+			if (fileTransferListener != null) {
+				fileTransferListener.onFileDownloadFinished(message, content);
+			} else {
+				Log.w("No LinphoneOnFileTransferListener listener set.");
+			}
+		} else if (size != 0) {
+			// Append data to previously received data
+			if (downloadData != null) {
+				try {
+					downloadData.write(data);
+				} catch (IOException e) {
+					Log.e(e);
+				}
+			}
 		}
 	}
 	
 	@Override
-	public int fileTransferSend(LinphoneCore lc, LinphoneChatMessage message,
-			LinphoneContent content, ByteBuffer buffer, int size) {
-		if (fileTransferListener != null) {
-			return fileTransferListener.onFileUploadDataNeeded(message, content, buffer, size);
-		} else {
-			Log.w("No listener set for fileTransferSend callback!");
+	public int fileTransferSend(LinphoneCore lc, LinphoneChatMessage message, LinphoneContent content, ByteBuffer data, int size) {
+		if (uploadData != null && uploadData.available() < size) {
+			Log.w("Asking for more bytes than remaining...");
+			size = uploadData.available();
 		}
-		return 0;
+		byte[] buffer = new byte[size];
+		int bytesWritten = uploadData.read(buffer, 0, size);
+		data.put(buffer);
+		buffer = null;
+
+		if (uploadData.available() == 0) { // Upload finished
+			try {
+				uploadData.close();
+			} catch (IOException e) {
+				Log.e(e);
+			}
+			uploadData = null;
+			
+			if (fileTransferListener != null) {
+				fileTransferListener.onFileUploadFinished(message, content);
+			} else {
+				Log.w("No LinphoneOnFileTransferListener listener set.");
+			}
+		}
+		
+		return bytesWritten;
 	}
 }
