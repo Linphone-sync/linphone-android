@@ -11,6 +11,7 @@ import java.util.List;
 import org.linphone.LinphoneSimpleListener.LinphoneOnComposingReceivedListener;
 import org.linphone.LinphoneSimpleListener.LinphoneOnFileTransferListener;
 import org.linphone.LinphoneSimpleListener.LinphoneOnMessageReceivedListener;
+import org.linphone.compatibility.Compatibility;
 import org.linphone.core.LinphoneAddress;
 import org.linphone.core.LinphoneChatMessage;
 import org.linphone.core.LinphoneChatMessage.State;
@@ -32,6 +33,7 @@ import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
+import android.graphics.Rect;
 import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Bundle;
@@ -51,6 +53,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver.OnGlobalLayoutListener;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.BaseAdapter;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -85,7 +89,9 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 	private LinphoneChatRoom chatRoom;
 	private Uri imageToUploadUri;
 	private Bitmap imageToUpload;
+	private OnGlobalLayoutListener keyboardListener;
 	
+	private View view;
 	private EditText message;
 	private ImageView cancelUpload;
 	private TextView sendImage, sendMessage, contactName, remoteComposing;
@@ -103,7 +109,7 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 		String displayName = getArguments().getString("DisplayName");
 		String pictureUri = getArguments().getString("PictureUri");
 		
-		View view = inflater.inflate(R.layout.chat, container, false);
+		view = inflater.inflate(R.layout.chat, container, false);
 		
 		contactName = (TextView) view.findViewById(R.id.contactName);
         contactPicture = (AvatarWithShadow) view.findViewById(R.id.contactPicture);
@@ -163,6 +169,15 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 		if (lc != null) {
 			chatRoom = lc.getOrCreateChatRoom(sipUri);
 		}
+		if (LinphoneManager.isInstanciated()) {
+			LinphoneManager.getInstance().setOnFileTransferListener(this);
+		}
+
+		// Force hide keyboard
+		if (LinphoneActivity.isInstanciated()) {
+			InputMethodManager imm = (InputMethodManager) LinphoneActivity.instance().getSystemService(Context.INPUT_METHOD_SERVICE);
+			imm.hideSoftInputFromWindow(view.getWindowToken(),0);
+		}
 		
 		return view;
 	}
@@ -174,6 +189,14 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 	}
 	
 	@Override
+	public void onStop() {
+		if (LinphoneManager.isInstanciated()) {
+			LinphoneManager.getInstance().setOnFileTransferListener(null);
+		}
+		super.onStop();
+	}
+	
+	@Override
 	public void onPause() {
 		message.removeTextChangedListener(textWatcher);
 	
@@ -181,8 +204,8 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 
 		if (LinphoneManager.isInstanciated()) {
 			LinphoneManager.getInstance().setOnComposingReceivedListener(null);
-			LinphoneManager.getInstance().setOnFileTransferListener(null);
 		}
+		removeVirtualKeyboardVisiblityListener();
 
 		super.onPause();
 		
@@ -197,6 +220,7 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 			LinphoneManager.getInstance().setOnComposingReceivedListener(this);
 			LinphoneManager.getInstance().setOnFileTransferListener(this);
 		}
+		addVirtualKeyboardVisiblityListener();
 
 		super.onResume();
 
@@ -270,7 +294,7 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 			ByteArrayInputStream bis = new ByteArrayInputStream(downloadData.toByteArray());
 			Bitmap bm = BitmapFactory.decodeStream(bis);
 			if (bm != null) {
-				LinphoneUtils.saveImageOnDevice(LinphoneActivity.instance(), content.getName(), bm, msg.getStorageId());
+				LinphoneUtils.saveImageOnDevice(LinphoneActivity.instance(), content.getName(), bm);
 			}
 			
 			try {
@@ -283,9 +307,11 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 			mHandler.post(new Runnable() {
 				@Override
 				public void run() {
-					adapter.refreshHistory();
-					adapter.notifyDataSetChanged();
-					scrollToEnd();
+					if (adapter != null) {
+						adapter.refreshHistory();
+						adapter.notifyDataSetChanged();
+						scrollToEnd();
+					}
 				}
 			});
 		} else if (size != 0) {
@@ -347,6 +373,39 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 				adapter.notifyDataSetChanged();
 			}
 		});
+	}
+
+	private void addVirtualKeyboardVisiblityListener() {
+		keyboardListener = new OnGlobalLayoutListener() {
+			@Override
+			public void onGlobalLayout() {
+			    Rect visibleArea = new Rect();
+			    view.getWindowVisibleDisplayFrame(visibleArea);
+
+			    int heightDiff = view.getRootView().getHeight() - (visibleArea.bottom - visibleArea.top);
+			    if (heightDiff > 200) {
+			    	showKeyboardVisibleMode();
+			    } else {
+			    	hideKeyboardVisibleMode();
+			    }
+			}
+		};
+		view.getViewTreeObserver().addOnGlobalLayoutListener(keyboardListener);
+	}
+
+	private void removeVirtualKeyboardVisiblityListener() {
+		Compatibility.removeGlobalLayoutListener(view.getViewTreeObserver(), keyboardListener);
+	}
+
+	public void showKeyboardVisibleMode() {
+		LinphoneActivity.instance().hideMenu(true);
+		contactPicture.setVisibility(View.GONE);
+		scrollToEnd();
+	}
+
+	public void hideKeyboardVisibleMode() {
+		LinphoneActivity.instance().hideMenu(false);
+		contactPicture.setVisibility(View.VISIBLE);
 	}
 
 	private void scrollToEnd() {
@@ -412,7 +471,8 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 		currentFileTransferMessage = message;
 		downloadData = new ByteArrayOutputStream();
 		isDownloading = true;
-		
+
+		uploadProgressBar.setProgress(0);
 		uploadLayout.setVisibility(View.VISIBLE);
 		progressBarText.setText(getString(R.string.downloading_image));
 		textLayout.setVisibility(View.GONE);
@@ -461,9 +521,11 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 		
 		LinphoneChatMessage message = createUploadImageMessage(bm);
 		if (message != null) {
+			LinphoneUtils.saveImageOnDevice(LinphoneActivity.instance(), message.getFileTransferInformation().getName(), bm);
 			chatRoom.sendMessage(message, this);
 			currentFileTransferMessage = message;
 			isUploading = true;
+			uploadProgressBar.setProgress(0);
 			uploadLayout.setVisibility(View.VISIBLE);
 			progressBarText.setText(getString(R.string.uploading_image));
 			textLayout.setVisibility(View.GONE);
@@ -480,7 +542,7 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 
 	    final Intent galleryIntent = new Intent();
 	    galleryIntent.setType("image/*");
-	    galleryIntent.setAction(Intent.ACTION_GET_CONTENT);
+	    galleryIntent.setAction(Intent.ACTION_PICK);
 
 	    final Intent chooserIntent = Intent.createChooser(galleryIntent, getString(R.string.image_picker_title));
 	    chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, cameraIntents.toArray(new Parcelable[]{}));
@@ -636,6 +698,7 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 			}
 			
 			final LinphoneChatMessage msg = history[position];
+			
 			BubbleChat bubble = new BubbleChat(context, null, msg, new BubbleChatActionListener() {
 				@Override
 				public void onDownloadButtonClick() {

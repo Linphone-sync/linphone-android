@@ -410,17 +410,9 @@ public final class LinphoneUtils {
 		}
 	}
 	
-	public static boolean isExistingFile(String name) {
-		if (name == null) {
-			return false;
-		}
-		
-		String path = Environment.getExternalStorageDirectory().toString();
-		if (!path.endsWith("/"))
-			path += "/";
-		path += "Pictures/";
-		File file = new File(path, name);
-		return file.exists();
+	public static boolean isExistingFile(Context context, String name) {
+		File file = getBitmapFile(context, name);
+		return file != null && file.exists();
 	}
 	
 	private  static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
@@ -440,22 +432,22 @@ public final class LinphoneUtils {
 	    return inSampleSize;
 	}
 	
-	public static Bitmap readBitmapFromFile(String name) {
+	public static Bitmap readBitmapFromFile(Context context, String name) {
 		if (name == null) {
 			return null;
 		}
 		
 		BitmapFactory.Options options = new BitmapFactory.Options();
 	    options.inJustDecodeBounds = true;
-	    BitmapFactory.decodeFile(getBitmapPathFromFile(name), options);
+	    BitmapFactory.decodeFile(getBitmapPathFromFile(context, name), options);
 
 	    options.inSampleSize = calculateInSampleSize(options, 200, 200);
 
 	    options.inJustDecodeBounds = false;
-	    return BitmapFactory.decodeFile(getBitmapPathFromFile(name), options);
+	    return BitmapFactory.decodeFile(getBitmapPathFromFile(context, name), options);
 	}
 	
-	public static String getBitmapPathFromFile(String name) {
+	private static File getBitmapFile(Context context, String name) {
 		if (name == null) {
 			return null;
 		}
@@ -463,20 +455,28 @@ public final class LinphoneUtils {
 		String path = Environment.getExternalStorageDirectory().toString();
 		if (!path.endsWith("/"))
 			path += "/";
-		path += "Pictures/";
+		path += context.getString(R.string.picture_save_path);
+		if (!path.endsWith("/"))
+			path += "/";
+		
+		File dir = new File(path);
+		dir.mkdirs();
+		
 		File file = new File(path, name);
-		return file.getAbsolutePath();
+		return file;
 	}
 	
-	public static String saveImageOnDevice(Context context, String name, Bitmap bm, int id) {
+	public static String getBitmapPathFromFile(Context context, String name) {
+		File file = getBitmapFile(context, name);
+		if (file != null) {
+			return file.getAbsolutePath();
+		}
+		return null;
+	}
+	
+	public static String saveImageOnDevice(Context context, String name, Bitmap bm) {
 		try {
-			String path = Environment.getExternalStorageDirectory().toString();
-			if (!path.endsWith("/"))
-				path += "/";
-			path += "Pictures/";
-			File directory = new File(path);
-			directory.mkdirs();
-			File file = new File(path, name);
+			File file = getBitmapFile(context, name);
 
 			OutputStream fOut = null;
 			fOut = new FileOutputStream(file);

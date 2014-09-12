@@ -153,7 +153,7 @@ public class BubbleChat {
     	
     	if (download != null && message.getFileTransferInformation() != null) {
 	    	final String imageName = message.getFileTransferInformation().getName();
-	    	if (imageName != null && !LinphoneUtils.isExistingFile(imageName)) {
+	    	if (imageName != null && !LinphoneUtils.isExistingFile(context, imageName) && !message.isOutgoing()) {
 	    		download.setVisibility(View.VISIBLE);
 	    		download.setText(context.getString(R.string.download_image));
 	    		download.setOnClickListener(new OnClickListener() {
@@ -193,7 +193,7 @@ public class BubbleChat {
 	}
 	
 	private void displayImageIfPossible(final String imageName) {
-		Bitmap bm = LinphoneUtils.readBitmapFromFile(imageName);
+		Bitmap bm = LinphoneUtils.readBitmapFromFile(context, imageName);
 		if (bm != null) {
 			imageView.setImageBitmap(bm);
 			imageView.setVisibility(View.VISIBLE);
@@ -204,7 +204,7 @@ public class BubbleChat {
 	    			@Override
 	    			public void onClick(View v) {
 	    				Intent intent = new Intent(Intent.ACTION_VIEW);
-	    				intent.setDataAndType(Uri.parse("file://" + LinphoneUtils.getBitmapPathFromFile(imageName)), "image/*");
+	    				intent.setDataAndType(Uri.parse("file://" + LinphoneUtils.getBitmapPathFromFile(context, imageName)), "image/*");
 	    				BubbleChat.this.context.startActivity(intent);
 	    			}
 	    		});

@@ -681,7 +681,7 @@ public class LinphoneActivity extends FragmentActivity implements
 		menu.setVisibility(hide ? View.GONE : View.VISIBLE);
 		mark.setVisibility(hide ? View.GONE : View.VISIBLE);
 	}
-
+	
 	public void updateStatusFragment(StatusFragment fragment) {
 		statusFragment = fragment;
 
