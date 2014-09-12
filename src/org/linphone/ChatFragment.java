@@ -314,6 +314,7 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 					
 					scrollToEnd();
 					chatRoom.markAsRead();
+					LinphoneActivity.instance().updateMissedChatCount();
 				}
 			});
 		}
@@ -391,6 +392,7 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 		adapter = new ChatMessageAdapter(this.getActivity(), chatRoom.getHistory());
 		messagesList.setAdapter(adapter);  
 		chatRoom.markAsRead();
+		LinphoneActivity.instance().updateMissedChatCount();
 	}
 
 	public void changeDisplayedChat(String newSipUri, String displayName, String pictureUri) {
@@ -537,8 +539,7 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 			menu.add(0, MENU_PICTURE_SMALL, 0, getString(R.string.share_picture_size_small));
 			menu.add(0, MENU_PICTURE_MEDIUM, 0, getString(R.string.share_picture_size_medium));
 			menu.add(0, MENU_PICTURE_LARGE, 0, getString(R.string.share_picture_size_large));
-//			Not a good idea, very big pictures cause Out of Memory exceptions, slow display, ...
-//			menu.add(0, MENU_PICTURE_REAL, 0, getString(R.string.share_picture_size_real));
+			menu.add(0, MENU_PICTURE_REAL, 0, getString(R.string.share_picture_size_real));
 		}
 	}
 	
