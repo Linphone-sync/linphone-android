@@ -648,9 +648,6 @@ public class LinphoneManager implements LinphoneCoreListener {
 
 	@TargetApi(Build.VERSION_CODES.HONEYCOMB)
 	private void doDestroy() {
-		if (LinphoneService.isReady()) // indeed, no need to crash
-			ChatStorage.getInstance().close();
-
 		BluetoothManager.getInstance().destroy();
 		try {
 			mTimer.cancel();

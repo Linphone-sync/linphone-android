@@ -35,6 +35,7 @@ import org.linphone.core.CallDirection;
 import org.linphone.core.LinphoneAddress;
 import org.linphone.core.LinphoneAuthInfo;
 import org.linphone.core.LinphoneCall;
+import org.linphone.core.LinphoneChatRoom;
 import org.linphone.core.LinphoneCall.State;
 import org.linphone.core.LinphoneCallLog;
 import org.linphone.core.LinphoneCallLog.CallStatus;
@@ -541,6 +542,15 @@ public class LinphoneActivity extends FragmentActivity implements
 	public void displayAbout() {
 		changeCurrentFragment(FragmentsAvailable.ABOUT, null);
 	}
+	
+	private int getUnreadMessageCount() {
+		int count = 0;
+		LinphoneChatRoom[] chats = LinphoneManager.getLc().getChatRooms();
+		for (LinphoneChatRoom chatroom : chats) {
+			count += chatroom.getUnreadMessagesCount();
+		}
+		return count;
+	}
 
 	public void displayChat(String sipUri) {
 		if (getResources().getBoolean(R.bool.disable_chat)) {
@@ -578,7 +588,7 @@ public class LinphoneActivity extends FragmentActivity implements
 		}
 		LinphoneService.instance().resetMessageNotifCount();
 		LinphoneService.instance().removeMessageNotification();
-		displayMissedChats(getChatStorage().getUnreadMessageCount());
+		displayMissedChats(getUnreadMessageCount());
 	}
 
 	@Override
@@ -713,33 +723,13 @@ public class LinphoneActivity extends FragmentActivity implements
 		return statusFragment;
 	}
 
-	public List<String> getChatList() {
-		return getChatStorage().getChatList();
-	}
-
-	public List<String> getDraftChatList() {
-		return getChatStorage().getDrafts();
-	}
-
-	public List<ChatMessage> getChatMessages(String correspondent) {
-		return getChatStorage().getMessages(correspondent);
-	}
-
-	public void removeFromChatList(String sipUri) {
-		getChatStorage().removeDiscussion(sipUri);
-	}
-
-	public void removeFromDrafts(String sipUri) {
-		getChatStorage().deleteDraft(sipUri);
-	}
-
 	@Override
 	public void onMessageReceived(LinphoneAddress from, LinphoneChatMessage message) {
 		ChatFragment chatFragment = ((ChatFragment) messageListenerFragment);
 		if (messageListenerFragment != null && messageListenerFragment.isVisible() && chatFragment.getSipUri().equals(from.asStringUriOnly())) {
 			chatFragment.onMessageReceived(from, message);
 		} else if (LinphoneService.isReady()) {
-			displayMissedChats(getChatStorage().getUnreadMessageCount());
+			displayMissedChats(getUnreadMessageCount());
 			if (messageListFragment != null && messageListFragment.isVisible()) {
 				((ChatListFragment) messageListFragment).refresh();
 			}
@@ -747,7 +737,7 @@ public class LinphoneActivity extends FragmentActivity implements
 	}
 
 	public void updateMissedChatCount() {
-		displayMissedChats(getChatStorage().getUnreadMessageCount());
+		displayMissedChats(getUnreadMessageCount());
 	}
 
 	public void onRegistrationStateChanged(LinphoneProxyConfig proxy, RegistrationState state, String message) {
@@ -1169,10 +1159,6 @@ public class LinphoneActivity extends FragmentActivity implements
 
 	public FragmentsAvailable getCurrentFragment() {
 		return currentFragment;
-	}
-
-	public ChatStorage getChatStorage() {
-		return ChatStorage.getInstance();
 	}
 	
 	public void addContact(String displayName, String sipUri)

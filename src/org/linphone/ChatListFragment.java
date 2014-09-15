@@ -17,6 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
+import java.util.ArrayList;
 import java.util.List;
 
 import org.linphone.core.LinphoneAddress;
@@ -52,7 +53,7 @@ public class ChatListFragment extends Fragment implements OnClickListener, OnIte
 	private Handler mHandler = new Handler();
 	
 	private LayoutInflater mInflater;
-	private List<String> mConversations, mDrafts;
+	private List<String> mConversations;
 	private ListView chatList;
 	private TextView edit, ok, newDiscussion, noChatHistory;
 	private ImageView clearFastChat;
@@ -89,7 +90,7 @@ public class ChatListFragment extends Fragment implements OnClickListener, OnIte
 	}
 	
 	private void hideAndDisplayMessageIfNoChat() {
-		if (mConversations.size() == 0 && mDrafts.size() == 0) {
+		if (mConversations.size() == 0) {
 			noChatHistory.setVisibility(View.VISIBLE);
 			chatList.setVisibility(View.GONE);
 		} else {
@@ -99,13 +100,21 @@ public class ChatListFragment extends Fragment implements OnClickListener, OnIte
 		}
 	}
 	
+	private List<String> getConversationsList() {
+		List<String> list = new ArrayList<String>();
+		for(LinphoneChatRoom room : LinphoneManager.getLc().getChatRooms()) {
+			if (room.getHistory(1).length > 0) {
+				list.add(room.getPeerAddress().asStringUriOnly());
+			}
+		}
+		return list;
+	}
+	
 	public void refresh() {
 		mHandler.post(new Runnable() {
 			@Override
 			public void run() {
-				mConversations = LinphoneActivity.instance().getChatList();
-				mDrafts = LinphoneActivity.instance().getDraftChatList();
-				mConversations.removeAll(mDrafts);
+				mConversations = getConversationsList();
 				hideAndDisplayMessageIfNoChat();
 			}
 		});
@@ -141,10 +150,8 @@ public class ChatListFragment extends Fragment implements OnClickListener, OnIte
 		}
 		String sipUri = (String) info.targetView.getTag();
 		
-		LinphoneActivity.instance().removeFromChatList(sipUri);
-		mConversations = LinphoneActivity.instance().getChatList();
-		mDrafts = LinphoneActivity.instance().getDraftChatList();
-		mConversations.removeAll(mDrafts);
+		LinphoneManager.getLc().getOrCreateChatRoom(sipUri).deleteHistory();
+		mConversations = getConversationsList();
 		hideAndDisplayMessageIfNoChat();
 		return true;
 	}
@@ -194,12 +201,9 @@ public class ChatListFragment extends Fragment implements OnClickListener, OnIte
 		if (LinphoneActivity.isInstanciated() && !isEditMode) {
 			LinphoneActivity.instance().displayChat(sipUri);
 		} else if (LinphoneActivity.isInstanciated()) {
-			LinphoneActivity.instance().removeFromChatList(sipUri);
-			LinphoneActivity.instance().removeFromDrafts(sipUri);
+			LinphoneManager.getLc().getOrCreateChatRoom(sipUri).deleteHistory();
 			
-			mConversations = LinphoneActivity.instance().getChatList();
-			mDrafts = LinphoneActivity.instance().getDraftChatList();
-			mConversations.removeAll(mDrafts);
+			mConversations = getConversationsList();
 			hideAndDisplayMessageIfNoChat();
 			
 			LinphoneActivity.instance().updateMissedChatCount();
@@ -211,7 +215,7 @@ public class ChatListFragment extends Fragment implements OnClickListener, OnIte
 		}
 		
 		public int getCount() {
-			return mConversations.size() + mDrafts.size();
+			return mConversations.size();
 		}
 
 		public Object getItem(int position) {
@@ -231,16 +235,9 @@ public class ChatListFragment extends Fragment implements OnClickListener, OnIte
 				view = mInflater.inflate(R.layout.chatlist_cell, parent, false);
 				
 			}
-			String contact;
-			boolean isDraft = false;
-			if (position >= mDrafts.size()) {
-				contact = mConversations.get(position - mDrafts.size());
-			} else {
-				contact = mDrafts.get(position);
-				isDraft = true;
-			}
+			String contact = mConversations.get(position);
 			view.setTag(contact);
-			int unreadMessagesCount = LinphoneActivity.instance().getChatStorage().getUnreadMessageCount(contact);
+			int unreadMessagesCount = LinphoneManager.getLc().getOrCreateChatRoom(contact).getUnreadMessagesCount();
 			
 			LinphoneAddress address;
 			try {
@@ -279,10 +276,6 @@ public class ChatListFragment extends Fragment implements OnClickListener, OnIte
 			} 
 			
 			sipUri.setText(address.getDisplayName() == null ? contact : address.getDisplayName());
-			if (isDraft) {
-				view.findViewById(R.id.draft).setVisibility(View.VISIBLE);
-			}
-			
 			
 			ImageView delete = (ImageView) view.findViewById(R.id.delete);
 			TextView unreadMessages = (TextView) view.findViewById(R.id.unreadMessages);
