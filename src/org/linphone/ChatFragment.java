@@ -26,7 +26,6 @@ import org.linphone.ui.BubbleChat.BubbleChatActionListener;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
 import android.graphics.BitmapFactory;
@@ -40,7 +39,6 @@ import android.os.Handler;
 import android.os.Parcelable;
 import android.provider.MediaStore;
 import android.support.v4.app.Fragment;
-import android.support.v4.content.CursorLoader;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
@@ -80,6 +78,7 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 	private String sipUri;
 	private boolean isDownloading, isUploading;
 	private LinphoneChatMessage currentFileTransferMessage;
+	private String imageAlreadyHasAnId;
 	private ChatMessageAdapter adapter;
 	
 	private LinphoneChatRoom chatRoom;
@@ -478,7 +477,14 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 		
 		LinphoneChatMessage message = createUploadImageMessage(bm);
 		if (message != null) {
-			LinphoneUtils.saveImageOnDevice(LinphoneActivity.instance(), message.getFileTransferInformation().getName(), bm);
+			if (imageAlreadyHasAnId == null) {
+				message.setAppData(LinphoneUtils.saveImageOnDevice(LinphoneActivity.instance(), message.getFileTransferInformation().getName(), bm));
+			} else {
+				Log.w("Image fetched from gallery, already has ID " + imageAlreadyHasAnId);
+				message.setAppData(imageAlreadyHasAnId);
+			}
+			imageAlreadyHasAnId = null;
+			
 			chatRoom.sendMessage(message, this);
 			currentFileTransferMessage = message;
 			isUploading = true;
@@ -490,18 +496,18 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 	}
 
 	private void startImagePicker() {
-	    final List<Intent> cameraIntents = new ArrayList<Intent>();
-	    final Intent captureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+	    List<Intent> cameraIntents = new ArrayList<Intent>();
+	    Intent captureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
 	    File file = new File(Environment.getExternalStorageDirectory(), getString(R.string.temp_photo_name));
 	    imageToUploadUri = Uri.fromFile(file);
     	captureIntent.putExtra(MediaStore.EXTRA_OUTPUT, imageToUploadUri);
 	    cameraIntents.add(captureIntent);
 
-	    final Intent galleryIntent = new Intent();
+	    Intent galleryIntent = new Intent();
 	    galleryIntent.setType("image/*");
 	    galleryIntent.setAction(Intent.ACTION_PICK);
 
-	    final Intent chooserIntent = Intent.createChooser(galleryIntent, getString(R.string.image_picker_title));
+	    Intent chooserIntent = Intent.createChooser(galleryIntent, getString(R.string.image_picker_title));
 	    chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, cameraIntents.toArray(new Parcelable[]{}));
 
 	    startActivityForResult(chooserIntent, ADD_PHOTO);
@@ -573,29 +579,19 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 		uploadImage(imageToUpload);
 		return true;
 	}
-
-	private String getRealPathFromURI(Uri contentUri) {
-		String[] proj = { MediaStore.Images.Media.DATA };
-	    CursorLoader loader = new CursorLoader(getActivity(), contentUri, proj, null, null, null);
-	    Cursor cursor = loader.loadInBackground();
-	    if (cursor != null && cursor.moveToFirst()) {
-		    int column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
-		    String result = cursor.getString(column_index);
-		    cursor.close();
-		    return result;
-	    }
-	    return null;
-    }
 	
 	@Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
+		imageAlreadyHasAnId = null;
         if (requestCode == ADD_PHOTO && resultCode == Activity.RESULT_OK) {
         	if (data != null && data.getExtras() != null && data.getExtras().get("data") != null) {
         		Bitmap bm = (Bitmap) data.getExtras().get("data");
         		showPopupMenuAskingImageSize(null, bm);
         	}
         	else if (data != null && data.getData() != null) {
-	    		String filePath = getRealPathFromURI(data.getData());
+        		Context context = LinphoneActivity.instance();
+	    		imageAlreadyHasAnId = LinphoneUtils.getImageIdFromUri(context, data.getData());
+	    		String filePath = LinphoneUtils.getImagePathForImageId(context, imageAlreadyHasAnId);
 	        	showPopupMenuAskingImageSize(filePath, null);
         	}
         	else if (imageToUploadUri != null) {

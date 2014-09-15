@@ -1456,7 +1456,7 @@ public class LinphoneManager implements LinphoneCoreListener {
 			ByteArrayInputStream bis = new ByteArrayInputStream(downloadData.toByteArray());
 			Bitmap bm = BitmapFactory.decodeStream(bis);
 			if (bm != null) {
-				LinphoneUtils.saveImageOnDevice(getContext(), content.getName(), bm);
+				message.setAppData(LinphoneUtils.saveImageOnDevice(getContext(), content.getName(), bm));
 			}
 			
 			try {

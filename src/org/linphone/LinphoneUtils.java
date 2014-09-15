@@ -28,7 +28,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -53,6 +52,7 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.ConnectivityManager;
@@ -61,6 +61,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.support.v4.content.CursorLoader;
 import android.telephony.TelephonyManager;
 import android.util.TypedValue;
 import android.view.KeyEvent;
@@ -415,6 +416,7 @@ public final class LinphoneUtils {
 		return file != null && file.exists();
 	}
 	
+	@Deprecated
 	private  static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
 	    int height = options.outHeight;
 	    int width = options.outWidth;
@@ -432,6 +434,7 @@ public final class LinphoneUtils {
 	    return inSampleSize;
 	}
 	
+	@Deprecated
 	public static Bitmap readBitmapFromFile(Context context, String name) {
 		if (name == null) {
 			return null;
@@ -447,6 +450,7 @@ public final class LinphoneUtils {
 	    return BitmapFactory.decodeFile(getBitmapPathFromFile(context, name), options);
 	}
 	
+	@Deprecated
 	private static File getBitmapFile(Context context, String name) {
 		if (name == null) {
 			return null;
@@ -466,6 +470,7 @@ public final class LinphoneUtils {
 		return file;
 	}
 	
+	@Deprecated
 	public static String getBitmapPathFromFile(Context context, String name) {
 		File file = getBitmapFile(context, name);
 		if (file != null) {
@@ -475,22 +480,47 @@ public final class LinphoneUtils {
 	}
 	
 	public static String saveImageOnDevice(Context context, String name, Bitmap bm) {
-		try {
-			File file = getBitmapFile(context, name);
-
-			OutputStream fOut = null;
-			fOut = new FileOutputStream(file);
-
-			bm.compress(Bitmap.CompressFormat.JPEG, 100, fOut);
-			fOut.flush();
-			fOut.close();
-
-			MediaStore.Images.Media.insertImage(context.getContentResolver(), file.getAbsolutePath(), file.getName(), file.getName());
-			return file.getAbsolutePath();
-		} catch (Exception e) {
-			Log.e(e);
+		String path = MediaStore.Images.Media.insertImage(context.getContentResolver(), bm, name, name);
+		if (path != null) {
+			Uri uri = Uri.parse(path);
+			String id = uri.getLastPathSegment();
+			return id;
 		}
 		return null;
+	}
+	
+	public static String getImagePathForImageId(Context context, String imageId) {
+		String filePath = null;
+		String[] filePathColumn = { MediaStore.Images.Media.DATA };
+	    Cursor cursor = context.getContentResolver().query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, filePathColumn, MediaStore.Images.Media._ID + " = ?", 
+	    		new String[] { imageId }, null);
+
+	    if (cursor != null && cursor.moveToFirst()) {
+	        filePath = cursor.getString(cursor.getColumnIndex(filePathColumn[0]));
+	    }
+	    
+	    cursor.close();
+	    return filePath;
+	}
+	
+	public static String getImageIdFromUri(Context context, Uri contentUri) {
+		String[] proj = { MediaStore.Images.Media._ID };
+	    CursorLoader loader = new CursorLoader(context, contentUri, proj, null, null, null);
+	    Cursor cursor = loader.loadInBackground();
+	    if (cursor != null && cursor.moveToFirst()) {
+		    int column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID);
+		    String result = cursor.getString(column_index);
+		    cursor.close();
+		    return result;
+	    }
+	    return null;
+    }
+	
+	// imageId has to be a long!
+	public static Bitmap getThumbnailBitmapForImageId(Context context, String imageId) {
+		Bitmap bm = MediaStore.Images.Thumbnails.getThumbnail(context.getContentResolver(), Long.parseLong(imageId), MediaStore.Images.Thumbnails.MINI_KIND,
+                (BitmapFactory.Options) null);
+		return bm;
 	}
 }
 

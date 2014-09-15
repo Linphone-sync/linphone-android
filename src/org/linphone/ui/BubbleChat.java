@@ -152,21 +152,19 @@ public class BubbleChat {
     	download = (Button) layout.findViewById(R.id.download);
     	
     	if (download != null && message.getFileTransferInformation() != null) {
-	    	final String imageName = message.getFileTransferInformation().getName();
-	    	if (imageName != null && !LinphoneUtils.isExistingFile(context, imageName) && !message.isOutgoing()) {
-	    		download.setVisibility(View.VISIBLE);
-	    		download.setText(context.getString(R.string.download_image));
-	    		download.setOnClickListener(new OnClickListener() {
-					@Override
-					public void onClick(View v) {
-						if (BubbleChat.this.listener != null) {
-							setDownloadInProgressLayout();
-							BubbleChat.this.listener.onDownloadButtonClick();
-						}
-					}
-				});
+			String imageName = message.getFileTransferInformation().getName();
+	    	if (message.getAppData() == null && !message.isOutgoing()) {
+	    		showDownloadButton();
     		} else {
-    			displayImageIfPossible(imageName);
+    			if (message.getAppData() != null) { 
+    				displayImageIfPossible(message.getAppData());
+    			} else if (imageName != null) {
+    				if (!LinphoneUtils.isExistingFile(context, imageName) && !message.isOutgoing()) {
+    					showDownloadButton();
+    				} else {
+    					displayImageIfPossibleDeprecated(imageName);
+    				}
+    			}
     		}
     	}
     	
@@ -187,12 +185,27 @@ public class BubbleChat {
     	view.addView(layout);
 	}
 	
+	private void showDownloadButton() {
+		download.setVisibility(View.VISIBLE);
+		download.setText(context.getString(R.string.download_image));
+		download.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				if (BubbleChat.this.listener != null) {
+					setDownloadInProgressLayout();
+					BubbleChat.this.listener.onDownloadButtonClick();
+				}
+			}
+		});
+	}
+	
 	public void setDownloadInProgressLayout() {
 		download.setEnabled(false);
 		download.setText(BubbleChat.this.context.getString(R.string.downloading_image));
 	}
 	
-	private void displayImageIfPossible(final String imageName) {
+	@Deprecated
+	private void displayImageIfPossibleDeprecated(final String imageName) {
 		Bitmap bm = LinphoneUtils.readBitmapFromFile(context, imageName);
 		if (bm != null) {
 			imageView.setImageBitmap(bm);
@@ -205,6 +218,26 @@ public class BubbleChat {
 	    			public void onClick(View v) {
 	    				Intent intent = new Intent(Intent.ACTION_VIEW);
 	    				intent.setDataAndType(Uri.parse("file://" + LinphoneUtils.getBitmapPathFromFile(context, imageName)), "image/*");
+	    				BubbleChat.this.context.startActivity(intent);
+	    			}
+	    		});
+	    	}
+		}
+	}
+	
+	private void displayImageIfPossible(final String imageId) {
+		Bitmap bm = LinphoneUtils.getThumbnailBitmapForImageId(context, imageId);
+		if (bm != null) {
+			imageView.setImageBitmap(bm);
+			imageView.setVisibility(View.VISIBLE);
+			download.setVisibility(View.GONE);
+			
+			if (imageView != null) {
+	    		imageView.setOnClickListener(new OnClickListener() {
+	    			@Override
+	    			public void onClick(View v) {
+	    				Intent intent = new Intent(Intent.ACTION_VIEW);
+	    				intent.setDataAndType(Uri.parse("file://" + LinphoneUtils.getImagePathForImageId(context, imageId)), "image/*");
 	    				BubbleChat.this.context.startActivity(intent);
 	    			}
 	    		});
