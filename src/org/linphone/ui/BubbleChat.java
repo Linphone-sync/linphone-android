@@ -152,20 +152,16 @@ public class BubbleChat {
     	download = (Button) layout.findViewById(R.id.download);
     	
     	if (download != null && message.getFileTransferInformation() != null) {
-			String imageName = message.getFileTransferInformation().getName();
 	    	if (message.getAppData() == null && !message.isOutgoing()) {
 	    		showDownloadButton();
     		} else {
     			if (message.getAppData() != null) { 
     				displayImageIfPossible(message.getAppData());
-    			} else if (imageName != null) {
-    				if (!LinphoneUtils.isExistingFile(context, imageName) && !message.isOutgoing()) {
-    					showDownloadButton();
-    				} else {
-    					displayImageIfPossibleDeprecated(imageName);
-    				}
     			}
     		}
+    	} else if (download != null && message.getExternalBodyUrl() != null) {
+    		// Needed to be able to display previously received messages
+    		displayImageIfPossibleDeprecated(message.getExternalBodyUrl());
     	}
     	
     	TextView timeView = (TextView) layout.findViewById(R.id.time);
@@ -205,8 +201,8 @@ public class BubbleChat {
 	}
 	
 	@Deprecated
-	private void displayImageIfPossibleDeprecated(final String imageName) {
-		Bitmap bm = LinphoneUtils.readBitmapFromFile(context, imageName);
+	private void displayImageIfPossibleDeprecated(final String imagePath) {
+		Bitmap bm = LinphoneUtils.readBitmapFromFile(context, imagePath);
 		if (bm != null) {
 			imageView.setImageBitmap(bm);
 			imageView.setVisibility(View.VISIBLE);
@@ -217,7 +213,7 @@ public class BubbleChat {
 	    			@Override
 	    			public void onClick(View v) {
 	    				Intent intent = new Intent(Intent.ACTION_VIEW);
-	    				intent.setDataAndType(Uri.parse("file://" + LinphoneUtils.getBitmapPathFromFile(context, imageName)), "image/*");
+	    				intent.setDataAndType(Uri.parse("file://" + imagePath), "image/*");
 	    				BubbleChat.this.context.startActivity(intent);
 	    			}
 	    		});

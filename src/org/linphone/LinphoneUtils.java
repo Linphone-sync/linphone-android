@@ -23,7 +23,6 @@ import static android.view.View.VISIBLE;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -59,7 +58,6 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Build;
-import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v4.content.CursorLoader;
 import android.telephony.TelephonyManager;
@@ -411,11 +409,6 @@ public final class LinphoneUtils {
 		}
 	}
 	
-	public static boolean isExistingFile(Context context, String name) {
-		File file = getBitmapFile(context, name);
-		return file != null && file.exists();
-	}
-	
 	@Deprecated
 	private  static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
 	    int height = options.outHeight;
@@ -442,41 +435,12 @@ public final class LinphoneUtils {
 		
 		BitmapFactory.Options options = new BitmapFactory.Options();
 	    options.inJustDecodeBounds = true;
-	    BitmapFactory.decodeFile(getBitmapPathFromFile(context, name), options);
+	    BitmapFactory.decodeFile(name, options);
 
 	    options.inSampleSize = calculateInSampleSize(options, 200, 200);
 
 	    options.inJustDecodeBounds = false;
-	    return BitmapFactory.decodeFile(getBitmapPathFromFile(context, name), options);
-	}
-	
-	@Deprecated
-	private static File getBitmapFile(Context context, String name) {
-		if (name == null) {
-			return null;
-		}
-		
-		String path = Environment.getExternalStorageDirectory().toString();
-		if (!path.endsWith("/"))
-			path += "/";
-		path += context.getString(R.string.picture_save_path);
-		if (!path.endsWith("/"))
-			path += "/";
-		
-		File dir = new File(path);
-		dir.mkdirs();
-		
-		File file = new File(path, name);
-		return file;
-	}
-	
-	@Deprecated
-	public static String getBitmapPathFromFile(Context context, String name) {
-		File file = getBitmapFile(context, name);
-		if (file != null) {
-			return file.getAbsolutePath();
-		}
-		return null;
+	    return BitmapFactory.decodeFile(name, options);
 	}
 	
 	public static String saveImageOnDevice(Context context, String name, Bitmap bm) {
