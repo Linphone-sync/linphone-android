@@ -597,18 +597,23 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 			break;
 		}
 		
-		uploadImage(imageToUpload);
-		imageToUpload = null;
+		if (imageToUpload != null) {
+			uploadImage(imageToUpload);
+			imageToUpload = null;
+		}
 		return true;
 	}
 	
 	@Override
 	public void onCreateContextMenu(ContextMenu menu, View v, ContextMenuInfo menuInfo) {
-		if (v.getId() == R.id.sendPicture && imageToUpload != null) {
-			menu.add(0, MENU_PICTURE_SMALL, 0, getString(R.string.share_picture_size_small));
-			menu.add(0, MENU_PICTURE_MEDIUM, 0, getString(R.string.share_picture_size_medium));
-			menu.add(0, MENU_PICTURE_LARGE, 0, getString(R.string.share_picture_size_large));
-			menu.add(0, MENU_PICTURE_REAL, 0, getString(R.string.share_picture_size_real));
+		if (v.getId() == R.id.sendPicture) {
+			menu.removeGroup(0);
+			if (imageToUpload != null) {
+				menu.add(0, MENU_PICTURE_SMALL, 0, getString(R.string.share_picture_size_small));
+				//menu.add(0, MENU_PICTURE_MEDIUM, 0, getString(R.string.share_picture_size_medium));
+				//menu.add(0, MENU_PICTURE_LARGE, 0, getString(R.string.share_picture_size_large));
+				menu.add(0, MENU_PICTURE_REAL, 0, getString(R.string.share_picture_size_real));
+			}
 		} else {
 			// To avoid duplicated entries on images
 			menu.removeItem(MENU_DELETE_MESSAGE);
