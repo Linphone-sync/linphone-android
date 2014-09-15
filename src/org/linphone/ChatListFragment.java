@@ -26,14 +26,8 @@ import org.linphone.core.LinphoneCoreException;
 import org.linphone.core.LinphoneCoreFactory;
 import org.linphone.mediastream.Log;
 
-import android.app.ProgressDialog;
-import android.content.Context;
-import android.content.SharedPreferences;
-import android.content.pm.PackageManager.NameNotFoundException;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
-import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
@@ -64,7 +58,6 @@ public class ChatListFragment extends Fragment implements OnClickListener, OnIte
 	private ImageView clearFastChat;
 	private EditText fastNewChat;
 	private boolean isEditMode = false;
-	private boolean useLinphoneStorage;
 	
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -102,7 +95,7 @@ public class ChatListFragment extends Fragment implements OnClickListener, OnIte
 		} else {
 			noChatHistory.setVisibility(View.GONE);
 			chatList.setVisibility(View.VISIBLE);
-			chatList.setAdapter(new ChatListAdapter(useLinphoneStorage));
+			chatList.setAdapter(new ChatListAdapter());
 		}
 	}
 	
@@ -117,57 +110,10 @@ public class ChatListFragment extends Fragment implements OnClickListener, OnIte
 			}
 		});
 	}
-	
-	private boolean isVersionUsingNewChatStorage() {
-		try {
-			Context context = LinphoneActivity.instance();
-			return context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionCode >= 2200;
-		} catch (NameNotFoundException e) {
-			e.printStackTrace();
-		}
-		return true;
-	}
 
 	@Override
 	public void onResume() {
 		super.onResume();
-		
-		//Check if the is the first time we show the chat view since we use liblinphone chat storage
-		useLinphoneStorage = getResources().getBoolean(R.bool.use_linphone_chat_storage);
-		final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(LinphoneActivity.instance());
-		boolean updateNeeded = prefs.getBoolean(getString(R.string.pref_first_time_linphone_chat_storage), true);
-		updateNeeded = updateNeeded && !isVersionUsingNewChatStorage();
-		if (useLinphoneStorage && updateNeeded) {
-			AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>() {
-                private ProgressDialog pd;
-                @Override
-                protected void onPreExecute() {
-                         pd = new ProgressDialog(LinphoneActivity.instance());
-                         pd.setTitle(getString(R.string.wait));
-                         pd.setMessage(getString(R.string.importing_messages));
-                         pd.setCancelable(false);
-                         pd.setIndeterminate(true);
-                         pd.show();
-                }
-                @Override
-                protected Void doInBackground(Void... arg0) {
-                        try {
-                        	if (importAndroidStoredMessagedIntoLibLinphoneStorage()) {
-                				prefs.edit().putBoolean(getString(R.string.pref_first_time_linphone_chat_storage), false).commit();
-                				LinphoneActivity.instance().getChatStorage().restartChatStorage();
-                			}
-                        } catch (Exception e) {
-                               e.printStackTrace();
-                        }
-                        return null;
-                 }
-                 @Override
-                 protected void onPostExecute(Void result) {
-                         pd.dismiss();
-                 }
-			};
-        	task.execute((Void[])null);
-		}
 		
 		if (LinphoneActivity.isInstanciated()) {
 			LinphoneActivity.instance().selectMenu(FragmentsAvailable.CHATLIST);
@@ -260,38 +206,8 @@ public class ChatListFragment extends Fragment implements OnClickListener, OnIte
 		}
 	}
 	
-	private boolean importAndroidStoredMessagedIntoLibLinphoneStorage() {
-		Log.w("Importing previous messages into new database...");
-		try {
-			ChatStorage db = LinphoneActivity.instance().getChatStorage();
-			List<String> conversations = db.getChatList();
-			for (int j = conversations.size() - 1; j >= 0; j--) {
-				String correspondent = conversations.get(j);
-				LinphoneChatRoom room = LinphoneManager.getLc().getOrCreateChatRoom(correspondent);
-				for (ChatMessage message : db.getMessages(correspondent)) {
-					LinphoneChatMessage msg = room.createLinphoneChatMessage(message.getMessage(), message.getUrl(), message.getStatus(), Long.parseLong(message.getTimestamp()), true, message.isIncoming());
-					if (message.getImage() != null) {
-						String path = LinphoneUtils.saveImageOnDevice(LinphoneActivity.instance(), "linphone-mms-" + message.getId() + ".jpg", message.getImage());
-						if (path != null)
-							msg.setExternalBodyUrl(path);
-					}
-					msg.store();
-				}
-				db.removeDiscussion(correspondent);
-			}
-			return true;
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		
-		return false;
-	}
-	
 	class ChatListAdapter extends BaseAdapter {
-		private boolean useNativeAPI;
-		
-		ChatListAdapter(boolean useNativeAPI) {
-			this.useNativeAPI = useNativeAPI;
+		ChatListAdapter() {
 		}
 		
 		public int getCount() {
@@ -330,39 +246,24 @@ public class ChatListFragment extends Fragment implements OnClickListener, OnIte
 			try {
 				address = LinphoneCoreFactory.instance().createLinphoneAddress(contact);
 			} catch (LinphoneCoreException e) {
-				Log.e("Chat view cannot parse address",e);
+				Log.e(e);
 				return view;
 			}
 			LinphoneUtils.findUriPictureOfContactAndSetDisplayName(address, view.getContext().getContentResolver());
 
 			String message = "";
-			if (useNativeAPI) {
-				LinphoneChatRoom chatRoom = LinphoneManager.getLc().getOrCreateChatRoom(contact);
-				LinphoneChatMessage[] history = chatRoom.getHistory(20);
-				if (history != null && history.length > 0) {
-					for (int i = history.length - 1; i >= 0; i--) {
-						LinphoneChatMessage msg = history[i];
-						if (msg.getText() != null && msg.getText().length() > 0) {
-							message = msg.getText();
-							break;
-						}
+			LinphoneChatRoom chatRoom = LinphoneManager.getLc().getOrCreateChatRoom(contact);
+			LinphoneChatMessage[] history = chatRoom.getHistory(20);
+			if (history != null && history.length > 0) {
+				for (int i = history.length - 1; i >= 0; i--) {
+					LinphoneChatMessage msg = history[i];
+					if (msg.getText() != null && msg.getText().length() > 0) {
+						message = msg.getText();
+						break;
+					} else if (msg.getFileTransferInformation() != null) {
+						message = getString(R.string.multimedia_content);
+						break;
 					}
-				}
-			} else {
-				List<ChatMessage> messages = LinphoneActivity.instance().getChatMessages(contact);
-				if (messages != null && messages.size() > 0) {
-					int iterator = messages.size() - 1;
-					ChatMessage lastMessage = null;
-					
-					while (iterator >= 0) {
-						lastMessage = messages.get(iterator);
-						if (lastMessage.getMessage() == null) {
-							iterator--;
-						} else {
-							iterator = -1;
-						}
-					}
-					message = (lastMessage == null || lastMessage.getMessage() == null) ? "" : lastMessage.getMessage();
 				}
 			}
 			TextView lastMessageView = (TextView) view.findViewById(R.id.lastMessage);

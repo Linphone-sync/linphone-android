@@ -318,8 +318,8 @@ public final class LinphoneService extends Service implements LinphoneServiceLis
 		try {
 			pictureUri = LinphoneUtils.findUriPictureOfContactAndSetDisplayName(LinphoneCoreFactoryImpl.instance().createLinphoneAddress(fromSipUri), getContentResolver());
 		} catch (LinphoneCoreException e1) {
-			Log.e("Cannot parse from address",e1);
-			pictureUri=null;
+			Log.e(e1);
+			pictureUri = null;
 		}
 		Bitmap bm = null;
 		try {

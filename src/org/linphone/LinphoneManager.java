@@ -753,6 +753,11 @@ public class LinphoneManager implements LinphoneCoreListener {
 		LinphoneAddress from = message.getFrom();
 
 		String textMessage = message.getText();
+		if (textMessage == null || textMessage.length() == 0) {
+			if (message.getFileTransferInformation() != null) {
+				textMessage = getString(R.string.multimedia_content);
+			}
+		}
 		try {
 			LinphoneUtils.findUriPictureOfContactAndSetDisplayName(from, mServiceContext.getContentResolver());
 			if (!mServiceContext.getResources().getBoolean(R.bool.disable_chat__message_notification)) {
