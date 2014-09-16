@@ -27,6 +27,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -70,6 +71,7 @@ import org.linphone.core.PresenceActivityType;
 import org.linphone.core.PresenceModel;
 import org.linphone.core.PublishState;
 import org.linphone.core.SubscriptionState;
+import org.linphone.core.TunnelConfig;
 import org.linphone.mediastream.Log;
 import org.linphone.mediastream.Version;
 import org.linphone.mediastream.video.capture.hwconf.AndroidCameraConfiguration;
@@ -418,10 +420,9 @@ public class LinphoneManager implements LinphoneCoreListener {
 
 		NetworkInfo info = mConnectivityManager.getActiveNetworkInfo();
 		mLc.tunnelCleanServers();
-		String host = mPrefs.getTunnelHost();
-		if (host != null) {
-			int port = mPrefs.getTunnelPort();
-			mLc.tunnelAddServerAndMirror(host, port, 12345, 500);
+		TunnelConfig config = mPrefs.getTunnelConfig();
+		if (config.getHost() != null) {
+			mLc.tunnelAddServer(config);
 			manageTunnelServer(info);
 		}
 	}
@@ -537,8 +538,6 @@ public class LinphoneManager implements LinphoneCoreListener {
 		Log.w("MediaStreamer : " + availableCores + " cores detected and configured");
 		mLc.setCpuCount(availableCores);
 
-		initTunnelFromConf();
-
 		int migrationResult = getLc().migrateToMultiTransport();
 		Log.d("Migration to multi transport result = " + migrationResult);
 
@@ -569,14 +568,14 @@ public class LinphoneManager implements LinphoneCoreListener {
 		copyIfNotExist(R.raw.rootca, mLinphoneRootCaFile);
 	}
 
-	private void copyIfNotExist(int ressourceId,String target) throws IOException {
+	public void copyIfNotExist(int ressourceId, String target) throws IOException {
 		File lFileToCopy = new File(target);
 		if (!lFileToCopy.exists()) {
 			copyFromPackage(ressourceId,lFileToCopy.getName());
 		}
 	}
 
-	private void copyFromPackage(int ressourceId,String target) throws IOException{
+	public void copyFromPackage(int ressourceId, String target) throws IOException{
 		FileOutputStream lOutputStream = mServiceContext.openFileOutput (target, 0);
 		InputStream lInputStream = mR.openRawResource(ressourceId);
 		int readByte;
@@ -1416,5 +1415,23 @@ public class LinphoneManager implements LinphoneCoreListener {
 				}
 			}
 		}
+	}
+	@Override
+	public void fileTransferProgressIndication(LinphoneCore lc,
+			LinphoneChatMessage message, LinphoneContent content, int progress) {
+		// TODO Auto-generated method stub
+		
+	}
+	@Override
+	public void fileTransferRecv(LinphoneCore lc, LinphoneChatMessage message,
+			LinphoneContent content, byte[] buffer, int size) {
+		// TODO Auto-generated method stub
+		
+	}
+	@Override
+	public int fileTransferSend(LinphoneCore lc, LinphoneChatMessage message,
+			LinphoneContent content, ByteBuffer buffer, int size) {
+		// TODO Auto-generated method stub
+		return 0;
 	}
 }
