@@ -289,8 +289,6 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 			public void run() {
 				if (adapter != null) {
 					adapter.refreshHistory();
-					adapter.notifyDataSetChanged();
-					scrollToEnd();
 				}
 			}
 		});
@@ -308,7 +306,6 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 				@Override
 				public void run() {
 					adapter.refreshHistory();
-					adapter.notifyDataSetChanged();
 					
 					scrollToEnd();
 					chatRoom.markAsRead();
@@ -324,7 +321,6 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 			@Override
 			public void run() {
 				adapter.refreshHistory();
-				adapter.notifyDataSetChanged();
 			}
 		});
 	}
@@ -354,7 +350,6 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 	public void showKeyboardVisibleMode() {
 		LinphoneActivity.instance().hideMenu(true);
 		contactPicture.setVisibility(View.GONE);
-		scrollToEnd();
 	}
 
 	public void hideKeyboardVisibleMode() {
@@ -387,8 +382,12 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 	}
 	
 	public void displayMessages() {
-		adapter = new ChatMessageAdapter(this.getActivity(), chatRoom.getHistory());
-		messagesList.setAdapter(adapter);  
+		if (adapter == null) {
+			adapter = new ChatMessageAdapter(this.getActivity(), chatRoom.getHistory());
+			messagesList.setAdapter(adapter);  
+		} else {
+			adapter.refreshHistory();
+		}
 		chatRoom.markAsRead();
 		LinphoneActivity.instance().updateMissedChatCount();
 	}
@@ -415,11 +414,6 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 	private void downloadImage(LinphoneChatMessage message) {
 		if (message.getFileTransferInformation() == null) {
 			Log.w("Unable to download, no file transfer information inside the message");
-			return;
-		}
-		
-		if (isUploading || isDownloading) {
-			LinphoneActivity.instance().displayCustomToast(getString(R.string.already_downloading_or_uploading), Toast.LENGTH_LONG);
 			return;
 		}
 		
@@ -591,7 +585,6 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 		case MENU_DELETE_MESSAGE:
 			chatRoom.deleteMessage(getMessageForId(item.getGroupId()));
 			adapter.refreshHistory();
-			adapter.notifyDataSetChanged();
 			break;
 		case MENU_COPY_TEXT:
 			copyTextMessageToClipboard(item.getGroupId());
@@ -671,6 +664,7 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 		
 		public void refreshHistory(){
 			this.history = chatRoom.getHistory();
+			notifyDataSetChanged();
 		}
 		 
 		@Override
@@ -689,7 +683,7 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 		}
 		
 		@Override
-		public View getView(int position, View convertView, ViewGroup parent) {
+		public View getView(final int position, View convertView, ViewGroup parent) {
 			RelativeLayout layout;
 			if (convertView != null) {
 				layout = (RelativeLayout) convertView;
@@ -703,6 +697,10 @@ implements OnClickListener, LinphoneOnComposingReceivedListener, LinphoneOnMessa
 			BubbleChat bubble = new BubbleChat(context, null, msg, new BubbleChatActionListener() {
 				@Override
 				public void onDownloadButtonClick() {
+					if (isUploading || isDownloading) {
+						LinphoneActivity.instance().displayCustomToast(getString(R.string.already_downloading_or_uploading), Toast.LENGTH_LONG);
+						return;
+					}
 					downloadImage(msg);
 				}
 			});

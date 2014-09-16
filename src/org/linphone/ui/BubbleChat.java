@@ -159,7 +159,7 @@ public class BubbleChat {
     				displayImageIfPossible(message.getAppData());
     			}
     		}
-    	} else if (download != null && message.getExternalBodyUrl() != null) {
+    	} else if (imageView != null && message.getExternalBodyUrl() != null) {
     		// Needed to be able to display previously received messages
     		displayImageIfPossibleDeprecated(message.getExternalBodyUrl());
     	}
@@ -208,16 +208,14 @@ public class BubbleChat {
 			imageView.setVisibility(View.VISIBLE);
 			download.setVisibility(View.GONE);
 			
-			if (imageView != null) {
-	    		imageView.setOnClickListener(new OnClickListener() {
-	    			@Override
-	    			public void onClick(View v) {
-	    				Intent intent = new Intent(Intent.ACTION_VIEW);
-	    				intent.setDataAndType(Uri.parse("file://" + imagePath), "image/*");
-	    				BubbleChat.this.context.startActivity(intent);
-	    			}
-	    		});
-	    	}
+    		imageView.setOnClickListener(new OnClickListener() {
+    			@Override
+    			public void onClick(View v) {
+    				Intent intent = new Intent(Intent.ACTION_VIEW);
+    				intent.setDataAndType(Uri.parse("file://" + imagePath), "image/*");
+    				BubbleChat.this.context.startActivity(intent);
+    			}
+    		});
 		}
 	}
 	
